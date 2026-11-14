@@ -15,9 +15,12 @@ BROWSER_SCRIPTS = {
 
 
 def get_front_app():
-    """Name of the app currently in front, e.g. 'Visual Studio Code'."""
+    """(name, path) of the app in front, e.g. ('Code', '/Applications/Visual Studio Code.app')."""
     app = NSWorkspace.sharedWorkspace().frontmostApplication()
-    return app.localizedName() if app else None
+    if app is None:
+        return None, None
+    bundle = app.bundleURL()
+    return app.localizedName(), (bundle.path() if bundle else None)
 
 
 def get_browser_url(app_name):
@@ -46,6 +49,6 @@ def get_domain(url):
 
 def get_current_activity():
     """Snapshot of what the user is looking at right now."""
-    app = get_front_app()
+    app, app_path = get_front_app()
     url = get_browser_url(app)
-    return {"app": app, "url": url, "domain": get_domain(url)}
+    return {"app": app, "app_path": app_path, "url": url, "domain": get_domain(url)}
