@@ -16,8 +16,12 @@ def notify(title, text):
 def force_back(target):
     """Bring the last allowed app (and page, for browsers) back to the front."""
     if not target or not target.get("app_path"):
-        return  # nothing allowed seen yet this run
+        print("   [force] no allowed app seen yet, nothing to go back to")
+        return
     cmd = ["open", "-a", target["app_path"]]
     if target.get("url"):
-        cmd.append(target["url"])   # browser: reopens the allowed page
-    subprocess.run(cmd, capture_output=True)
+        cmd.append(target["url"])
+    print(f"   [force] running: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"   [force] failed: {result.stderr.strip()}")
