@@ -161,14 +161,25 @@ def choose(title, options, current):
         return options[int(pick) - 1]
     return None
 
-def ask_seconds(label, current):
-    """Ask for a whole number of seconds (at least 1). Returns None if cancelled or invalid."""
-    text = input(f"{label} in seconds (current: {current}, Enter to cancel): ").strip()
+def ask_number(label, current, unit):
+    """Ask for a whole number (at least 1). Returns None if cancelled or invalid."""
+    text = input(f"{label} in {unit} (current: {current}, Enter to cancel): ").strip()
     if text.isdigit() and int(text) >= 1:
         return int(text)
     if text:
         print("  Please enter a whole number of 1 or more.")
     return None
+
+# (menu label, config key, unit) for every number setting
+NUMBER_SETTINGS = (
+    ("Grace period", "grace_seconds", "seconds"),
+    ("Repeat interval", "repeat_seconds", "seconds"),
+    ("Idle cutoff", "idle_seconds", "seconds"),
+    ("Pomodoro work block", "pomodoro_work_minutes", "minutes"),
+    ("Pomodoro break", "pomodoro_break_minutes", "minutes"),
+    ("Pomodoro rounds", "pomodoro_rounds", "rounds"),
+    ("Low-study warning below", "low_study_hours", "hours per week"),
+)
 
 # menu actions
 
@@ -249,25 +260,29 @@ def add_websites_loop():
 def settings_menu():
     while True:
         config = load_config()
-        print(f"\nSettings:  mode={config['mode']}  persona={config['persona']}  "
-              f"grace={config['grace_seconds']}s  repeat={config['repeat_seconds']}s")
-        print("1) Change mode   2) Change persona   3) Grace period   4) Repeat interval   5) Back")
+        print("\nSettings (Pomodoro changes apply to the next session):")
+        print(f"  1) Mode: {config['mode']}")
+        print(f"  2) Persona: {config['persona']}")
+        for i, (label, key, unit) in enumerate(NUMBER_SETTINGS, start=3):
+            print(f"  {i}) {label}: {config[key]} {unit}")
+        back = len(NUMBER_SETTINGS) + 3
+        print(f"  {back}) Back")
         choice = input("> ").strip()
+        if not choice.isdigit():
+            continue
+        n = int(choice)
 
-        if choice == "1":
+        if n == 1:
             new = choose("Mode  (warn = notification only, force = also switches you back)",
                          MODES, config["mode"])
             key = "mode"
-        elif choice == "2":
+        elif n == 2:
             new = choose("Persona", list(PERSONAS), config["persona"])
             key = "persona"
-        elif choice == "3":
-            new = ask_seconds("Grace period", config["grace_seconds"])
-            key = "grace_seconds"
-        elif choice == "4":
-            new = ask_seconds("Repeat interval", config["repeat_seconds"])
-            key = "repeat_seconds"
-        elif choice == "5":
+        elif 3 <= n < back:
+            label, key, unit = NUMBER_SETTINGS[n - 3]
+            new = ask_number(label, config[key], unit)
+        elif n == back:
             break
         else:
             continue
@@ -284,7 +299,7 @@ def menu():
         print("4) Remove app  5) Remove website")
         print("6) Allow what I'm on now   (recommended)")
         print("7) Pick from running apps  (recommended)")
-        print("8) Settings (mode, persona, timers)")
+        print("8) Settings (mode, persona, timers, Pomodoro, idle)")
         print("9) Quit")
         choice = input("> ").strip()
 
