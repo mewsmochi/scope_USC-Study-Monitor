@@ -42,6 +42,15 @@ python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace 
 - Pomodoro lengths and round count, the idle cutoff, and the deadline flag are in `config.json`
   (`pomodoro_*`, `idle_seconds`, `low_study_hours`).
 
+## Fonts
+
+Headings on the dashboard use [Marseille](https://www.fontspace.com/marseille-font-f146316). Its license allows only personal and non-profit use, so the font file isn't in the repo. To get it:
+
+1. Download it from the link above.
+2. Copy `MarseilleFreeRegular-*.otf` to `dashboard/static/fonts/Marseille.otf`. That path is git-ignored.
+
+Without it, the headings use Poppins. The free version has no glyphs for the digits 0–4, so digits always use the fallback font. If this project ever makes money, buy a commercial license from [alpapranastudio.com](https://alpapranastudio.com).
+
 ## Tests
 
 ```bash

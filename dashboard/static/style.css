@@ -1,6 +1,20 @@
 /* Page title font (must stay the first rule in the file) */
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap");
 
+/* Marseille: headings only. Personal/non-profit license, so the file is git-ignored;
+   without it the headings fall back to Poppins. See README > Fonts.
+   - unicode-range leaves out digits (the free version draws 0-4 as empty boxes),
+     so numbers in headings ("Last 7 days") always use the fallback font.
+   - weight range 100-900: the font has one weight, and this stops the browser
+     from faking a bold version when a heading asks for 700/800. */
+@font-face {
+  font-family: "Marseille";
+  src: url("fonts/Marseille.otf") format("opentype");
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0020-002F, U+003A-007E, U+00A0-00FF, U+2010-2027;
+}
+
 :root {
   --bg: #061510;      /* page */
   --card: #102c1d;    /* tiles, items inside the card */
@@ -11,6 +25,7 @@
   --accent: #4ade80;
   --panel: #0b2116;   /* main card */
   --input: #081a11;
+  --display-font: "Marseille", "Poppins", "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
 /* ---------- Base ---------- */
@@ -21,7 +36,7 @@ main {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 main h1 {
-  font-family: "Poppins", "Avenir Next", "Trebuchet MS", sans-serif;
+  font-family: var(--display-font);
   font-size: 3.6rem;
   line-height: 1.05;
   font-weight: 800;
@@ -31,6 +46,7 @@ main h1 {
   color: #ffffff;
   text-shadow: 0 2px 14px rgba(74, 222, 128, 0.35);   /* soft green glow */
 }
+h2, h3, .tab-button { font-family: var(--display-font); }
 h2 {
   margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--line);
   font-size: 1rem; color: #9be5b9; text-transform: uppercase; letter-spacing: 0.05em;

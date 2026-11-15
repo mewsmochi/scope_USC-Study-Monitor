@@ -6,3 +6,6 @@ __pycache__/
 data/*.db
 *.tmp
 config.json
+
+# Marseille font: personal/non-profit license, so it is not redistributed (see README > Fonts)
+dashboard/static/fonts/Marseille.otf
