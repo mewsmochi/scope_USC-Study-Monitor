@@ -2,6 +2,7 @@
 import logging
 import time
 from datetime import date
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, render_template, request
 
@@ -14,6 +15,30 @@ from sessions import control
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 app = Flask(__name__)
+
+LOCAL_HOSTS = {"127.0.0.1", "localhost"}
+
+
+@app.before_request
+def only_this_dashboard():
+    """Block other websites from controlling or reading the dashboard.
+
+    - Host check: stops DNS rebinding (evil.com re-pointed at 127.0.0.1 to read /api/stats).
+    - Origin check: a page on another site can't send POST/DELETE here.
+    - JSON-only POSTs: a plain HTML form can't send JSON, and a cross-site fetch with JSON needs
+      a CORS preflight, which this server never approves.
+    """
+    if request.host.split(":")[0] not in LOCAL_HOSTS:
+        return jsonify(error="Forbidden host"), 403
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return None
+    origin = request.headers.get("Origin")
+    if origin and urlparse(origin).hostname not in LOCAL_HOSTS:
+        return jsonify(error="Forbidden origin"), 403
+    if request.method == "POST" and not request.is_json:
+        return jsonify(error="Send JSON (Content-Type: application/json)"), 415
+    return None
+
 
 @app.get("/")
 def home():
