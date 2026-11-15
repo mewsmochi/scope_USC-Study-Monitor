@@ -9,7 +9,7 @@
 </head>
 <body>
   <main>
-    <h1>Study Monitor</h1>
+    <h1>Tunnl</h1>
 
     <nav id="tabs">
       <button class="tab-button active" data-tab="dashboard">Dashboard</button>
@@ -55,7 +55,10 @@
 
       <!-- Pause only works during a session -->
       <button id="pause-button" disabled>Pause monitoring</button>
-
+      <h2>Next deadline</h2>
+      <div id="next-deadline" class="next-card">Loading…</div>
+      <h3>Study order</h3>
+      <ol id="study-order"></ol>
       <h2>Last 7 days</h2>
       <div class="tiles">
         <div class="tile"><span class="label">Focused</span><span id="week-focused" class="value">—</span></div>
@@ -94,7 +97,7 @@
       <h2>Settings</h2>
       <div id="settings">
         <p><label>Mode <select id="set-mode"></select></label>
-           <small>warn = notification only, force = also switches you back</small></p>
+           <small>Warn = notification only, Force = also switches you back</small>
         <p><label>Persona <select id="set-persona"></select></label></p>
         <div id="set-numbers"></div>
         <button id="save-settings">Save settings</button>
@@ -135,5 +138,6 @@
   <script src="{{ url_for('static', filename='settings.js') }}"></script>
   <script src="{{ url_for('static', filename='tabs.js') }}"></script>
   <script src="{{ url_for('static', filename='timer.js') }}"></script>
+  <script src="{{ url_for('static', filename='urgent.js') }}"></script>
 </body>
 </html>
