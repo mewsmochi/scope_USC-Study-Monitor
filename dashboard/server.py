@@ -9,7 +9,10 @@ from flask import Flask, jsonify, render_template, request
 import state
 from data import db
 from data.stats import report
-from rules.config_editor import load_config
+from alerts.messages import PERSONAS
+from monitor.detector import BROWSER_SCRIPTS
+from rules.config_editor import (load_config, save_config, add_to_allowlist, remove_from_allowlist,
+                                 clean_site, APPS, SITES, MODES, NUMBER_SETTINGS)
 from sessions import control
 
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -88,7 +91,22 @@ def session_start():
     mode = body.get("mode", "regular")
     if mode not in control.MODES:
         return jsonify(error="Pick a timer: regular or pomodoro"), 400
-    control.start(c, mode, load_config())
+    cfg = load_config()   # a copy for this session only; config.json isn't changed
+    if mode == "pomodoro":
+        for key, field in (("pomodoro_work_minutes", "work_minutes"),
+                           ("pomodoro_break_minutes", "break_minutes"),
+                           ("pomodoro_rounds", "rounds")):
+            if body.get(field) in (None, ""):
+                continue
+            try:
+                n = int(body[field])
+            except (TypeError, ValueError):
+                return jsonify(error=f"{field} must be a whole number"), 400
+            lo, hi = LIMITS[key]
+            if not lo <= n <= hi:
+                return jsonify(error=f"{field} must be between {lo} and {hi}"), 400
+            cfg[key] = n
+    control.start(c, mode, cfg)
     return jsonify(state.snapshot())
 
 
@@ -127,6 +145,96 @@ def delete_deadline(deadline_id):
     if not db.delete_deadline(deadline_id):
         return jsonify(error="Not found."), 404
     return "", 204
+
+# settings and allowlist
+LIMITS = {   # config key -> (min, max)
+    "grace_seconds": (1, 3600), "repeat_seconds": (1, 3600), "idle_seconds": (1, 3600),
+    "pomodoro_work_minutes": (1, 180), "pomodoro_break_minutes": (1, 60),
+    "pomodoro_rounds": (1, 12), "low_study_hours": (1, 100),
+}
+KINDS = {"apps": APPS, "sites": SITES}
+
+
+def config_payload():
+    c = load_config()
+    return {
+        "mode": c["mode"], "persona": c["persona"],
+        "modes": list(MODES), "personas": list(PERSONAS),
+        "numbers": [{"key": k, "label": label, "unit": unit, "value": c[k],
+                     "min": LIMITS[k][0], "max": LIMITS[k][1]}
+                    for label, k, unit in NUMBER_SETTINGS],
+        "apps": c[APPS], "sites": c[SITES],
+    }
+
+
+@app.get("/api/config")
+def get_config():
+    return jsonify(config_payload())
+
+
+@app.post("/api/config")
+def set_config():
+    body = request.get_json(silent=True) or {}
+    if body.get("mode") not in MODES:
+        return jsonify(error="Invalid mode"), 400
+    if body.get("persona") not in PERSONAS:
+        return jsonify(error="Invalid persona"), 400
+    updates = {"mode": body["mode"], "persona": body["persona"]}
+    for key, (lo, hi) in LIMITS.items():
+        try:
+            n = int(body[key])
+        except (KeyError, TypeError, ValueError):
+            return jsonify(error=f"{key} must be a whole number"), 400
+        if not lo <= n <= hi:
+            return jsonify(error=f"{key} must be between {lo} and {hi}"), 400
+        updates[key] = n
+    config = load_config()
+    config.update(updates)
+    save_config(config)   # main.py reloads this within ~5 seconds
+    return jsonify(config_payload())
+
+
+@app.post("/api/allowlist/add")
+def allowlist_add():
+    body = request.get_json(silent=True) or {}
+    kind = KINDS.get(body.get("kind"))
+    value = str(body.get("value") or "").strip()[:200]
+    if not kind or not value:
+        return jsonify(error="Enter a name first"), 400
+    if kind == SITES:
+        value = clean_site(value)
+    elif value in BROWSER_SCRIPTS:
+        return jsonify(error=f"Allowing {value} would allow every website. Add websites instead."), 400
+    if not value:
+        return jsonify(error="Enter a name first"), 400
+    add_to_allowlist(kind, value)
+    return jsonify(config_payload())
+
+
+@app.post("/api/allowlist/remove")
+def allowlist_remove():
+    body = request.get_json(silent=True) or {}
+    kind = KINDS.get(body.get("kind"))
+    if not kind:
+        return jsonify(error="Bad request"), 400
+    remove_from_allowlist(kind, str(body.get("value") or ""))
+    return jsonify(config_payload())
+
+
+@app.post("/api/allowlist/allow-current")
+def allowlist_allow_current():
+    # Allows whatever the monitor currently sees (the page waits a few seconds so you can switch first)
+    s = state.snapshot()
+    app_name, domain = s.get("app"), s.get("domain")
+    if not app_name or domain in LOCAL_HOSTS:
+        return jsonify(error="Switch to the app or site you want to allow first"), 400
+    if domain:
+        add_to_allowlist(SITES, domain)
+    elif app_name in BROWSER_SCRIPTS:
+        return jsonify(error="Couldn't read a page from the browser. Open a site and try again."), 400
+    else:
+        add_to_allowlist(APPS, app_name)
+    return jsonify(config_payload())
 
 def run():
     app.run(host="127.0.0.1", port=5050, debug=False, use_reloader=False)

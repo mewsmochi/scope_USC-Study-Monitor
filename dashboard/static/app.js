@@ -79,6 +79,7 @@ async function refresh() {
     // Get the shared state from Flask (no-store = never use a cached answer)
     const res = await fetch("/api/status", { cache: "no-store" });
     const s = await res.json();
+    window.lastStatus = s;   // timer.js reads this
     // session_id is null when no session is running
     const inSession = s.session_id !== null;
 
@@ -118,7 +119,13 @@ sessionButton.addEventListener("click", async () => {
     await post("/api/session/stop");
     setTimeout(() => window.refreshStats && refreshStats(), 1500);   // summary + stats once the monitor has caught up
   } else {
-    await post("/api/session/start", { class_id: Number(classSelect.value), mode: timerSelect.value });
+    await post("/api/session/start", {
+      class_id: Number(classSelect.value),
+      mode: timerSelect.value,
+      work_minutes: document.getElementById("pomo-work").value,
+      break_minutes: document.getElementById("pomo-break").value,
+      rounds: document.getElementById("pomo-rounds").value,
+    });  
   }
   refresh();
 });
