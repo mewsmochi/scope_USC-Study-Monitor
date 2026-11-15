@@ -17,6 +17,7 @@ from dashboard.server import run as run_dashboard
 
 CONFIG = load_config()
 POLL_SECONDS = 1.0
+RELOAD_SECONDS = 5
 
 
 def wait(seconds):
@@ -52,14 +53,26 @@ def handle(event, activity, tracker):
 
 
 def main():
+    global CONFIG
     threading.Thread(target=run_dashboard, daemon=True).start()
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
         f"grace={CONFIG['grace_seconds']}s (Ctrl+C to stop)")
     last_label = None
     was_paused = False
+    last_reload = time.monotonic()
 
     while True:
+        # Pick up edits from the config menu (or a future settings page)
+        if time.monotonic() - last_reload >= RELOAD_SECONDS:
+            try:
+                CONFIG = load_config()
+                tracker.grace = CONFIG["grace_seconds"]
+                tracker.repeat = CONFIG["repeat_seconds"]
+            except SystemExit:   # load_config exits on invalid JSON
+                log("   config.json has an error, keeping the previous settings")
+            last_reload = time.monotonic()
+        
         activity = get_current_activity()
         status = classify(activity, CONFIG)
 
