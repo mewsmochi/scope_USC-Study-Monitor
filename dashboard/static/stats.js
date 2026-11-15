@@ -1,5 +1,6 @@
 // Stats section: fetched from /api/stats every 30s (it's history, not live status)
 
+if (window.Chart) { Chart.defaults.color = "#a9cdb9"; Chart.defaults.borderColor = "#1f5a3b"; }
 let classChart = null;
 
 // 3725 -> "1h 02m", 125 -> "2m 05s"
