@@ -1,6 +1,7 @@
 import copy
 import difflib
 import json
+import shutil
 from pathlib import Path
 
 from AppKit import NSWorkspace, NSRunLoop, NSDate
@@ -9,6 +10,8 @@ from alerts.messages import PERSONAS
 
 # config.json lives in the project root, no matter where you run from
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+# config.json is git-ignored (each person has their own allowlist); this is the shared template
+EXAMPLE_PATH = CONFIG_PATH.with_name("config.example.json")
 
 # The two list keys the menu edits
 APPS = "allowed_apps"
@@ -22,6 +25,10 @@ DEFAULTS = {
     APPS: [],
     SITES: [],
     "neutral_apps": ["loginwindow", "ScreenSaverEngine", "Notification Center", "Spotlight", "Dock"],
+    "idle_seconds": 120,
+    "pomodoro_work_minutes": 25,
+    "pomodoro_break_minutes": 5,
+    "pomodoro_rounds": 4,
 }
 
 
@@ -48,6 +55,8 @@ def clean_site(text):
 def load_config():
     """Read the whole config, filling in anything missing with defaults."""
     data = {}
+    if not CONFIG_PATH.exists() and EXAMPLE_PATH.exists():
+        shutil.copy(EXAMPLE_PATH, CONFIG_PATH)   # first run: start from the shared template
     if CONFIG_PATH.exists():
         text = CONFIG_PATH.read_text().strip()
         if text:
