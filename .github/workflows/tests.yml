@@ -1,0 +1,19 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    # The tested logic never calls macOS; conftest.py stubs AppKit/Quartz, so Linux is enough
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies (same pins as requirements.txt, minus the macOS-only ones)
+        run: pip install $(grep -E '^(Flask|pytest)==' requirements.txt)
+      - run: python -m pytest -q
