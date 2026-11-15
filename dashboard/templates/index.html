@@ -17,7 +17,10 @@
 
     <!-- ===== Tab 1: Dashboard ===== -->
     <div class="panel" id="tab-dashboard">
-
+      <div id="timer-box">
+        <div id="timer-phase">Ready</div>
+        <div id="timer-display">0:00</div>
+      </div>
       <!--Class picker: choose a class, or add a new one -->
       <section>
         <label for="class-select">Class</label>
@@ -27,13 +30,19 @@
       </section>
 
       <!-- Session controls -->
-      <section>
+            <section>
         <label for="timer-select">Timer</label>
         <select id="timer-select">
           <option value="regular">Regular (counts up)</option>
           <option value="pomodoro">Pomodoro</option>
         </select>
+        <span id="pomo-fields" hidden>
+          <label>Focus <input id="pomo-work" type="number" min="1" max="180"> min</label>
+          <label>Break <input id="pomo-break" type="number" min="1" max="60"> min</label>
+          <label>Rounds <input id="pomo-rounds" type="number" min="1" max="12"></label>
+        </span>
         <button id="session-button" disabled>Start session</button>
+        <p class="hint">Pomodoro values apply to this session only. Change the defaults in Settings.</p>
       </section>
       <p>Session: <span id="session-info">Not started</span></p>
       <p id="last-summary" hidden></p>
@@ -124,5 +133,6 @@
   <script src="{{ url_for('static', filename='stats.js') }}"></script>
   <script src="{{ url_for('static', filename='settings.js') }}"></script>
   <script src="{{ url_for('static', filename='tabs.js') }}"></script>
+  <script src="{{ url_for('static', filename='timer.js') }}"></script>
 </body>
 </html>

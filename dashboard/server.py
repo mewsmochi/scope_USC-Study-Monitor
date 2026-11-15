@@ -91,7 +91,22 @@ def session_start():
     mode = body.get("mode", "regular")
     if mode not in control.MODES:
         return jsonify(error="Pick a timer: regular or pomodoro"), 400
-    control.start(c, mode, load_config())
+    cfg = load_config()   # a copy for this session only; config.json isn't changed
+    if mode == "pomodoro":
+        for key, field in (("pomodoro_work_minutes", "work_minutes"),
+                           ("pomodoro_break_minutes", "break_minutes"),
+                           ("pomodoro_rounds", "rounds")):
+            if body.get(field) in (None, ""):
+                continue
+            try:
+                n = int(body[field])
+            except (TypeError, ValueError):
+                return jsonify(error=f"{field} must be a whole number"), 400
+            lo, hi = LIMITS[key]
+            if not lo <= n <= hi:
+                return jsonify(error=f"{field} must be between {lo} and {hi}"), 400
+            cfg[key] = n
+    control.start(c, mode, cfg)
     return jsonify(state.snapshot())
 
 

@@ -116,3 +116,11 @@ main ul li { padding: 0.3rem 0.8rem; }
   background: #3b6b52 !important;
 }
 #list-apps li button:hover, #list-sites li button:hover { background: #b93c3c !important; }
+
+/* Big centered timer */
+#timer-box { text-align: center; padding: 0.6rem 0 1rem; }
+#timer-phase { color: #9be5b9; font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.14em; }
+#timer-display { font-size: clamp(3.5rem, 16vw, 6.5rem); font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+#timer-box.break #timer-phase, #timer-box.break #timer-display { color: #facc15; }
+#pomo-fields label { margin: 0 0.6rem 0 0.8rem; }
+#pomo-fields input { width: 4rem; }
