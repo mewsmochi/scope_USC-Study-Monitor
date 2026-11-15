@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS events (
     ts         REAL NOT NULL,
     app        TEXT,
     domain     TEXT,
-    status     TEXT NOT NULL
+    status     TEXT NOT NULL,
+    kind       TEXT NOT NULL DEFAULT 'activity'
 );
 
 CREATE TABLE IF NOT EXISTS deadlines (
@@ -40,6 +41,17 @@ CREATE TABLE IF NOT EXISTS deadlines (
 
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 """
+
+# Every status belongs to one kind, so queries can say WHERE kind = 'alert'.
+#   activity:  what you were doing (allowed, distracting, neutral, idle, paused, break)
+#   heartbeat: same status re-logged every HEARTBEAT_SECONDS so durations survive long stretches
+#   lifecycle: the monitor starting/stopping/pausing, pomodoro breaks
+#   alert:     what the focus tracker did about it
+KINDS = {
+    "started": "lifecycle", "stopped": "lifecycle", "paused": "lifecycle",
+    "resumed": "lifecycle", "break_start": "lifecycle", "break_end": "lifecycle",
+    "distracted": "alert", "still_distracted": "alert", "refocused": "alert", "forced": "alert",
+}
 
 def connect():
     # Open (or create) data/study.db; wait up to 5s if another thread is writing
@@ -58,18 +70,25 @@ def init_db():
     with closing(connect()) as conn, conn:
         # Run every CREATE TABLE IF NOT EXISTS in SCHEMA (won't erase existing data)
         conn.executescript(SCHEMA)
+        # Databases made before the kind column existed: add it instead of losing data
+        cols = [row["name"] for row in conn.execute("PRAGMA table_info(events)")]
+        if "kind" not in cols:
+            conn.execute("ALTER TABLE events ADD COLUMN kind TEXT NOT NULL DEFAULT 'activity'")
+            for status, kind in KINDS.items():
+                conn.execute("UPDATE events SET kind = ? WHERE status = ?", (kind, status))
 
 
-def log_event(app, domain, status, session_id=None):
-    """Record one change of activity. Never lets a database problem crash the monitor."""
+def log_event(app, domain, status, session_id=None, heartbeat=False):
+    """Record one event. Never lets a database problem crash the monitor."""
+    kind = "heartbeat" if heartbeat else KINDS.get(status, "activity")
     try:
         # Fresh connection per call, so the monitor and Flask threads never share one
         with closing(connect()) as conn, conn:
             # The ? placeholders keep values separate from the SQL (prevents SQL injection)
             conn.execute(
-                "INSERT INTO events (session_id, ts, app, domain, status) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO events (session_id, ts, app, domain, status, kind) VALUES (?, ?, ?, ?, ?, ?)",
                 # ts = the current time in seconds since 1970
-                (session_id, time.time(), app, domain, status),
+                (session_id, time.time(), app, domain, status, kind),
             )
     except sqlite3.Error as e:
         # Logging problems should never stop the monitor, so just print and carry on
