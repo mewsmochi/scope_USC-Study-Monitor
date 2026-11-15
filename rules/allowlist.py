@@ -24,5 +24,5 @@ def classify(activity, config):
         # New tab, settings page, no window, or URL unreadable: don't judge it
         if not url or not url.startswith(("http://", "https://")):
             return "neutral"
-             return "allowed" if domain_matches(domain, config["allowed_domains"]) else "distracting"
+        return "allowed" if domain_matches(domain, config["allowed_domains"]) else "distracting"
     return "allowed" if app_matches(app, config["allowed_apps"]) else "distracting"

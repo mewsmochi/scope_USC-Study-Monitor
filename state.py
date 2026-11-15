@@ -1,0 +1,15 @@
+# used as a communication whiteboard between the two processes main.py and server.py (i.e, monitor and server)
+# the monitor and server run at the same time --> safe way to pass information to each other
+
+import threading
+
+_lock = threading.Lock()
+_state = {"status": "Not connected", "app": None, "domain": None, "paused": False}
+
+def update(**fields):
+    with _lock:
+        _state.update(fields)
+
+def snapshot():
+    with _lock:
+        return dict(_state)
