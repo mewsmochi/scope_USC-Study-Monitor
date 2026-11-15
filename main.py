@@ -12,7 +12,7 @@ from alerts.messages import pick_message
 from alerts.actions import notify, force_back
 from rules.config_editor import load_config
 from data.db import init_db, log_event, start_session, end_session, session_events
-from data.stats import summarize
+from data.stats import summarize, HEARTBEAT_SECONDS, MAX_GAP_SECONDS
 from sessions.picker import pick_class, pick_timer
 from sessions.timer import pomodoro_phase
 
@@ -23,10 +23,6 @@ from dashboard.server import run as run_dashboard
 CONFIG = load_config()
 POLL_SECONDS = 1.0
 RELOAD_SECONDS = 5
-# Events are only logged on change, so re-log the current status this often;
-# stats then treat any gap longer than MAX_GAP_SECONDS as sleep/crash and skip it.
-HEARTBEAT_SECONDS = 30
-MAX_GAP_SECONDS = HEARTBEAT_SECONDS + 2 * POLL_SECONDS + 10
 
 SESSION = None   # {"id", "class", "mode", "start", "pomodoro": (work, break, rounds) in seconds}
 
