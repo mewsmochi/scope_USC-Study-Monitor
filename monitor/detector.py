@@ -3,6 +3,8 @@ import subprocess
 from urllib.parse import urlparse
 
 from AppKit import NSWorkspace
+from Quartz import (CGEventSourceSecondsSinceLastEventType,
+                    kCGEventSourceStateCombinedSessionState, kCGAnyInputEventType)
 
 # Browser name (as macOS reports it) -> AppleScript that returns the active tab's URL
 BROWSER_SCRIPTS = {
@@ -47,6 +49,12 @@ def get_domain(url):
     host = urlparse(url).hostname
     return host.removeprefix("www.") if host else None
     ##uses .hostname so that the port is excluded
+
+
+def get_idle_seconds():
+    """Seconds since the last keyboard/mouse/trackpad input."""
+    return CGEventSourceSecondsSinceLastEventType(
+        kCGEventSourceStateCombinedSessionState, kCGAnyInputEventType)
 
 
 def get_current_activity():

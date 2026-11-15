@@ -9,10 +9,20 @@ def domain_matches(domain, allowed_domains):
 def _norm(text):
     return text.strip().lower()
 
+def _name_matches(app, allowed):
+    # Exact, or a prefix followed by a separator/version: "MATLAB" matches "MATLAB_R2024b",
+    # but "Code" does not match "Codex"
+    if app == allowed:
+        return True
+    if not app.startswith(allowed):
+        return False
+    nxt = app[len(allowed)]
+    return nxt in " _-" or nxt.isdigit()
+
 def app_matches(app, allowed_apps):
-    # Case-insensitive; "matlab" also matches "MATLAB_R2024b"
+    # Case-insensitive
     a = _norm(app)
-    return any(a == _norm(x) or a.startswith(_norm(x)) for x in allowed_apps)
+    return any(_name_matches(a, _norm(x)) for x in allowed_apps)
 
 def classify(activity, config):
     app, url, domain = activity["app"], activity["url"], activity["domain"]

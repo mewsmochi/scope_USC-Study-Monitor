@@ -1,23 +1,25 @@
 # site url: http://127.0.0.1:5050
 
+import signal
+import threading
 import time
 from datetime import datetime
 
 from AppKit import NSRunLoop, NSDate
 
-from monitor.detector import get_current_activity
+from monitor.detector import get_current_activity, get_idle_seconds
 from rules.allowlist import classify
 from rules.focus_tracker import FocusTracker
 from alerts.messages import pick_message
 from alerts.actions import notify, force_back
 from rules.config_editor import load_config
+from data.db import init_db, log_event, session_events, close_orphan_sessions
+from data.stats import summarize, HEARTBEAT_SECONDS, MAX_GAP_SECONDS
+from sessions import control
+from sessions.timer import pomodoro_phase
 
-
-import threading
 import state
 from dashboard.server import run as run_dashboard
-
-from data.db import init_db, log_event, end_session, close_orphan_sessions
 
 
 CONFIG = load_config()
@@ -42,32 +44,92 @@ def log(text):
     print(f"[{datetime.now():%H:%M:%S}] {text}")
 
 
-def handle(event, activity, tracker):
+def fmt(seconds):
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    return f"{h}h {m:02d}m" if h else f"{m}m {s:02d}s"
+
+
+def current_status(activity):
+    status = classify(activity, CONFIG)
+    # Idle only overrides allowed/neutral: a video left playing on YouTube still counts as distracting
+    if status != "distracting" and get_idle_seconds() > CONFIG["idle_seconds"]:
+        return "idle"
+    return status
+
+
+def handle(event, activity, tracker, sid):
     where = label(activity)
     if event == "drifting":
         log(f"   drifting... {CONFIG['grace_seconds']}s grace period started")
-    elif event in ("distracted", "still_distracted"):
+        return
+    log_event(activity["app"], activity["domain"], event, sid)
+    if event in ("distracted", "still_distracted"):
         text = pick_message(CONFIG["persona"], event, where)
         log(f"   ⚠️  {text}")
         notify("Study Monitor", text)
         #added "event == distracted" so no new tab every repeat_seconds
-        if CONFIG["mode"] == "force" and event == "distracted": 
-            force_back(tracker.last_allowed)
+        if CONFIG["mode"] == "force" and event == "distracted":
+            target = tracker.last_allowed
+            force_back(target)
+            if target:
+                log_event(target["app"], target["domain"], "forced", sid)
     elif event == "refocused":
         log(f"   ✅ {pick_message(CONFIG['persona'], 'refocused', where)}")
+
+
+def timer_tick(snap, last_phase):
+    """Returns the pomodoro phase ("work"/"break"/"done") and publishes it to the dashboard."""
+    if snap["mode"] != "pomodoro":
+        return "work"
+    sid = snap["session_id"]
+    work, brk, rounds = snap["pomodoro"]
+    # ponytail: wall clock, pausing doesn't freeze the pomodoro
+    phase, rnd, left = pomodoro_phase(time.time() - snap["session_start"], work, brk, rounds)
+    state.update(timer={"phase": phase, "round": rnd, "rounds": rounds, "remaining": left})
+    if last_phase and phase != last_phase:
+        if phase == "break":
+            log_event(None, None, "break_start", sid)
+            text = f"Round {rnd} of {rounds} done. Take a {brk // 60}-minute break."
+        elif phase == "work":
+            log_event(None, None, "break_end", sid)
+            text = f"Break's over. Round {rnd} of {rounds}, let's go."
+        else:
+            text = f"Session complete: {rounds} rounds done!"
+        log(f"⏱  {text}")
+        notify("Study Monitor", text)
+    return phase
+
+
+def summarize_session(sid, class_name, mode):
+    """Print the summary of a finished session and put it on the dashboard."""
+    s = summarize(session_events(sid), MAX_GAP_SECONDS)
+    state.update(last_summary={"class": class_name, "mode": mode, **s})
+    productivity = f"{s['productivity']:.0f}%" if s["productivity"] is not None else "—"
+    try:
+        print(f"\nSession summary: {class_name} ({mode})\n"
+              f"  Total time:    {fmt(s['total'])}\n"
+              f"  Focused:       {fmt(s['focused'])}\n"
+              f"  Productivity:  {productivity}  (focused ÷ (focused + distracted))\n"
+              f"  Warnings:      {s['warnings']}\n")
+    except OSError:   # terminal already closed (SIGHUP)
+        pass
 
 
 def main():
     global CONFIG
     init_db()
-    close_orphan_sessions() #  tidy up any session left open by a crash
-    threading.Thread(target=run_dashboard, daemon=True).start() # dashboard runs in the background
+    close_orphan_sessions()   # tidy up any session left open by a crash
+    threading.Thread(target=run_dashboard, daemon=True).start()   # dashboard runs in the background
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
-        f"grace={CONFIG['grace_seconds']}s (Ctrl+C to stop)")
-    last_label = None
-    was_paused = False
-    active_session = None 
+        f"grace={CONFIG['grace_seconds']}s (Ctrl+C to quit)")
+    log("Open http://127.0.0.1:5050 to pick a class and start a session")
+    active = None           # (session_id, class_name, mode) the loop is tracking
+    last_logged = None      # (label, status) of the last activity row
+    last_write = 0.0        # wall-clock time of the last activity/heartbeat row
+    was_paused = was_held = False
+    phase = None
     last_reload = time.monotonic()
 
     while True:
@@ -80,63 +142,92 @@ def main():
             except SystemExit:   # load_config exits on invalid JSON
                 log("   config.json has an error, keeping the previous settings")
             last_reload = time.monotonic()
-        
-        activity = get_current_activity()
-        status = classify(activity, CONFIG)
-        # Publish to the dashboard's shared board (see state.py)
-        state.update(status=status, app=activity["app"], domain=activity["domain"])
 
+        activity = get_current_activity()
+        status = current_status(activity)
         snap = state.snapshot()
+        sid = snap["session_id"]
+
+        # Session started or stopped from the dashboard (or by the pomodoro timer)
+        if active and active[0] != sid:
+            log("Session ended")
+            summarize_session(*active)
+            active = None
+        if sid is not None and active is None:
+            active = (sid, snap["class_name"], snap["mode"])
+            tracker.reset()   # fresh timers for the new session (keeps last_allowed)
+            last_logged, last_write, was_paused, was_held, phase = None, 0.0, False, False, None
+            log(f"Session started: {snap['class_name']} ({snap['mode']})")
 
         # No session running: show live activity but track nothing
-        if snap["session_id"] is None:
-            if active_session is not None:   # a session just ended
-                active_session = None
-                was_paused = False
-                log("Session ended")
+        if sid is None:
+            state.update(status=status, app=activity["app"], domain=activity["domain"])
             wait(POLL_SECONDS)
             continue
 
-        # A new session just started: reset everything
-        if snap["session_id"] != active_session:
-            active_session = snap["session_id"]
-            tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
-            last_label = None
-            was_paused = False
-            log(f"Session started: {snap['class_name']}")
-
-        # Paused: log the pause once, then skip tracking 
-        if snap["paused"]:
-            if not was_paused:
-                log_event(None, None, "paused", active_session)
-            was_paused = True
-            wait(POLL_SECONDS)
+        new_phase = timer_tick(snap, phase)
+        if new_phase == "done":
+            control.stop()   # next loop prints the summary
             continue
-        if was_paused:
-            # Resuming: start with a fresh tracker so an old drift timer can't fire instantly
-            tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
-            last_label = None   # forces the current activity to be logged again
-            was_paused = False
+        if new_phase != phase:
+            last_write = 0.0   # log the new state right away
+        phase = new_phase
 
-        current = label(activity)
-        if current != last_label:
-            log(f"{current}  [{status}]")
-            log_event(activity["app"], activity["domain"], status, active_session)
-            last_label = current
+        # Paused from the dashboard: keep showing live activity, but skip warnings
+        paused = snap["paused"]
+        if paused != was_paused:
+            log_event(None, None, "paused" if paused else "resumed", sid)
+            last_write = 0.0
+        was_paused = paused
 
-        event = tracker.update(activity, status, time.monotonic())
-        if event:
-            handle(event, activity, tracker)
+        held = "paused" if paused else ("break" if phase == "break" else None)
+        if was_held and not held:
+            tracker.reset()      # clear old drift timers so they can't fire instantly (keeps last_allowed)
+            last_logged = None   # forces the current activity to be logged again
+        was_held = bool(held)
+
+        # Publish to the dashboard's shared board (see state.py)
+        state.update(status=held or status, app=activity["app"], domain=activity["domain"])
+
+        current = (label(activity), status)
+        if not held and current != last_logged:
+            log(f"{current[0]}  [{status}]")
+            log_event(activity["app"], activity["domain"], status, sid)
+            last_logged, last_write = current, time.time()
+        elif time.time() - last_write >= HEARTBEAT_SECONDS:
+            log_event(activity["app"], activity["domain"], held or status, sid, heartbeat=True)
+            last_write = time.time()
+
+        if not held:
+            event = tracker.update(activity, status, time.monotonic())
+            if event:
+                handle(event, activity, tracker, sid)
 
         wait(POLL_SECONDS)
 
 
+def finish():
+    """Ctrl+C, SIGTERM, or SIGHUP: close a running session properly and print its summary."""
+    snap = state.snapshot()
+    if control.stop() is not None:
+        summarize_session(snap["session_id"], snap["class_name"], snap["mode"])
+    try:
+        print("Stopped.")
+    except OSError:
+        pass
+
+
+def stop_on_signal(signum, frame):
+    # SIGTERM (kill) and SIGHUP (terminal window closed) would otherwise skip the "stopped" log
+    raise SystemExit(0)
+
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, stop_on_signal)
+    signal.signal(signal.SIGHUP, stop_on_signal)
     try:
         main()
     except KeyboardInterrupt:
-        sid = state.snapshot()["session_id"]
-        if sid is not None:   # Ctrl+C mid-session: close it properly
-            log_event(None, None, "stopped", sid)
-            end_session(sid)
-        print("\nStopped.")
+        pass
+    finally:
+        finish()

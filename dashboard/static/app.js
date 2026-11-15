@@ -8,6 +8,8 @@ const sessionInfoEl = document.getElementById("session-info");      // <span id=
 const classSelect = document.getElementById("class-select");        // <select id="class-select">
 const newClassInput = document.getElementById("new-class");         // <input id="new-class">
 const addClassButton = document.getElementById("add-class-button"); // <button id="add-class-button">
+const timerSelect = document.getElementById("timer-select");        // <select id="timer-select">
+const summaryEl = document.getElementById("last-summary");          // <p id="last-summary">
 
 //Helpers
 // POST a JSON body; show the server's error message if it refuses
@@ -27,6 +29,22 @@ function formatElapsed(seconds) {
   const s = Math.max(0, Math.floor(seconds));
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// "CSCI 104 — 12:05" (regular) or "CSCI 104 — Pomodoro round 2/4, work, 12:34 left"
+function sessionText(s) {
+  const t = s.timer;
+  if (s.mode === "pomodoro" && t) {
+    return `${s.class_name} — Pomodoro round ${t.round}/${t.rounds}, ${t.phase}, ${formatElapsed(t.remaining)} left`;
+  }
+  return `${s.class_name} — ${formatElapsed(Date.now() / 1000 - s.session_start)}`;
+}
+
+// "Last session (CSCI 104): 48:10 focused, 87% productive, 3 warnings"
+function summaryText(sum) {
+  const pct = sum.productivity === null ? "—" : `${Math.round(sum.productivity)}%`;
+  return `Last session (${sum.class}): ${formatElapsed(sum.focused)} focused of ${formatElapsed(sum.total)}, ` +
+         `${pct} productive, ${sum.warnings} warning${sum.warnings === 1 ? "" : "s"}`;
 }
 
 // Class dropdown 
@@ -50,6 +68,7 @@ addClassButton.addEventListener("click", async () => {
     newClassInput.value = "";
     await loadClasses(c.id);
     refresh();
+    if (window.refreshStats) refreshStats();   // the deadline form's class list too
   }
 });
 
@@ -69,15 +88,17 @@ async function refresh() {
     domainEl.textContent = s.domain || "—";    // "—" if not on a website
 
     // Session info: class name plus elapsed time (now minus start, in seconds)
-    sessionInfoEl.textContent = inSession
-      ? `${s.class_name} — ${formatElapsed(Date.now() / 1000 - s.session_start)}`
-      : "Not started";
+    sessionInfoEl.textContent = inSession ? sessionText(s) : "Not started";
+    // After a session ends, show its summary until the next one starts
+    summaryEl.hidden = inSession || !s.last_summary;
+    if (s.last_summary) summaryEl.textContent = summaryText(s.last_summary);
     // One button does both jobs: its label follows the session state
     sessionButton.textContent = inSession ? "Stop session" : "Start session";
     // Can't start without a class selected
     sessionButton.disabled = !inSession && !classSelect.value;
     // Lock the dropdown mid-session so the class can't change
     classSelect.disabled = inSession;
+    timerSelect.disabled = inSession;
 
     // Pause only makes sense during a session; the label flips between pause and resume
     pauseButton.disabled = !inSession;
@@ -95,8 +116,9 @@ sessionButton.addEventListener("click", async () => {
   const inSession = sessionButton.textContent === "Stop session";
   if (inSession) {
     await post("/api/session/stop");
+    setTimeout(() => window.refreshStats && refreshStats(), 1500);   // summary + stats once the monitor has caught up
   } else {
-    await post("/api/session/start", { class_id: Number(classSelect.value) });
+    await post("/api/session/start", { class_id: Number(classSelect.value), mode: timerSelect.value });
   }
   refresh();
 });
