@@ -67,6 +67,86 @@ function renderClassChart(classes) {
     if (chosen) select.value = chosen;
 }
 
+// --- Top distractions: ranked by time, with visits, warnings, and share of distracted time ---
+
+let lastReport = null;
+let distractionRange = "week";   // "week" or "all"
+try { distractionRange = localStorage.getItem("distractionRange") || "week"; } catch (e) {}
+
+function plural(n, word) {
+    return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+// "This week | All time" switch, added above the list once (keeps index.html untouched)
+function distractionToggle(list) {
+    let bar = document.getElementById("distraction-range");
+    if (bar) return bar;
+    bar = document.createElement("div");
+    bar.id = "distraction-range";
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Time range");
+    for (const [value, text] of [["week", "This week"], ["all", "All time"]]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.range = value;
+        b.textContent = text;
+        b.addEventListener("click", () => {
+            distractionRange = value;
+            try { localStorage.setItem("distractionRange", value); } catch (e) {}
+            renderDistractions();
+        });
+        bar.append(b);
+    }
+    list.before(bar);
+    return bar;
+}
+
+function renderDistractions() {
+    const list = document.getElementById("distractions");
+    if (!list || !lastReport) return;
+    for (const b of distractionToggle(list).children) {
+        b.setAttribute("aria-pressed", String(b.dataset.range === distractionRange));
+    }
+    const items = distractionRange === "week" ? lastReport.top_distractions_week : lastReport.top_distractions;
+    const top = items.length ? items[0].seconds : 0;
+
+    list.replaceChildren(...items.map(d => {
+        const li = document.createElement("li");
+        li.className = "distraction";
+
+        const head = document.createElement("div");
+        head.className = "distraction-head";
+        const name = document.createElement("span");
+        name.className = "distraction-name";
+        name.textContent = d.name;
+        const kind = document.createElement("span");
+        kind.className = "distraction-kind";
+        kind.textContent = d.kind === "site" ? "website" : "app";
+        const time = document.createElement("span");
+        time.className = "distraction-time";
+        time.textContent = duration(d.seconds);
+        head.append(name, kind, time);
+
+        // Bar length is relative to the #1 distraction, so the ranking reads at a glance
+        const track = document.createElement("div");
+        track.className = "distraction-bar";
+        const fill = document.createElement("span");
+        fill.style.width = `${top ? Math.max(2, 100 * d.seconds / top) : 0}%`;
+        track.append(fill);
+
+        const meta = document.createElement("div");
+        meta.className = "distraction-meta";
+        meta.textContent = `${Math.round(d.share)}% of distracted time · ${plural(d.visits, "visit")} · ` +
+                           plural(d.warnings, "warning");
+
+        li.append(head, track, meta);
+        return li;
+    }));
+    if (!items.length) {
+        list.textContent = distractionRange === "week" ? "No distractions this week 🎉" : "None yet 🎉";
+    }
+}
+
 async function refreshStats() {
     try {
         const r = await (await fetch("/api/stats")).json();
@@ -76,13 +156,8 @@ async function refreshStats() {
         renderDeadlines(r.deadlines);
         if (window.Chart) renderClassChart(r.classes);
 
-        const list = document.getElementById("distractions");
-        list.replaceChildren(...r.top_distractions.map(d => {
-            const li = document.createElement("li");
-            li.textContent = `${d.name}: ${duration(d.seconds)}`;
-            return li;
-        }));
-        if (!r.top_distractions.length) list.textContent = "None yet 🎉";
+        lastReport = r;
+        renderDistractions();
 
         document.getElementById("sessions").replaceChildren(...r.recent_sessions.map(s => row([
             new Date(s.start * 1000).toLocaleString(), s.class, s.mode,

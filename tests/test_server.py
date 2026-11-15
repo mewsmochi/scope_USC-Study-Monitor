@@ -97,4 +97,4 @@ def test_deadlines(client):
 def test_stats_shape(client):
     add_class(client)
     r = client.get("/api/stats").get_json()
-    assert set(r) == {"classes", "recent_sessions", "personal_best", "top_distractions", "week", "deadlines"}
+    assert set(r) == {"classes", "recent_sessions", "personal_best", "top_distractions", "top_distractions_week", "week", "deadlines"}
