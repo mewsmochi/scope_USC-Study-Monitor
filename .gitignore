@@ -3,3 +3,5 @@
 study_mon/
 __pycache__/
 *.pyc
+data/*.db*
+config.tmp
