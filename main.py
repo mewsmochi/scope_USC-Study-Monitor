@@ -10,6 +10,11 @@ from alerts.messages import pick_message
 from alerts.actions import notify, force_back
 from rules.config_editor import load_config
 
+import threading
+import state
+from dashboard.server import run as run_dashboard
+
+
 CONFIG = load_config()
 POLL_SECONDS = 1.0
 
@@ -47,14 +52,30 @@ def handle(event, activity, tracker):
 
 
 def main():
+    threading.Thread(target=run_dashboard, daemon=True).start()
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
         f"grace={CONFIG['grace_seconds']}s (Ctrl+C to stop)")
     last_label = None
+    was_paused = False
 
     while True:
         activity = get_current_activity()
         status = classify(activity, CONFIG)
+
+        # Publish to the dashboard's shared board (see state.py)
+        state.update(status=status, app=activity["app"], domain=activity["domain"])
+
+        # Paused from the dashboard: keep showing live activity, but skip warnings
+        paused = state.snapshot()["paused"]
+        if paused:
+            was_paused = True
+            wait(POLL_SECONDS)
+            continue
+        if was_paused:
+            # Resuming: start with a fresh tracker so an old drift timer can't fire instantly
+            tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
+            was_paused = False
 
         current = label(activity)
         if current != last_label:
