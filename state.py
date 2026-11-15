@@ -1,4 +1,4 @@
-# used as a communication whiteboard between the two processes main.py and server.py (i.e, monitor and server)
+# used as a communication whiteboard between the two threads in one process: the monitor loop (main.py) and the Flask server (server.py)
 # the monitor and server run at the same time --> safe way to pass information to each other
 
 import threading
