@@ -45,14 +45,20 @@ def log(text):
 def handle(event, activity, tracker):
     where = label(activity)
     if event == "drifting":
+        # Heads-up right as you leave the allowed list, before anything is forced
+        text = pick_message(CONFIG["persona"], "drifting", where, seconds=CONFIG["grace_seconds"])
         log(f"   drifting... {CONFIG['grace_seconds']}s grace period started")
+        log(f"   ⏳ {text}")
+        notify("Study Monitor", text)
     elif event in ("distracted", "still_distracted"):
-        text = pick_message(CONFIG["persona"], event, where)
+        forced = CONFIG["mode"] == "force" and event == "distracted"
+        if forced:
+             force_back(tracker.last_allowed)
+        # In force mode the message says you were sent back; in warn mode it just nudges you
+        key = "distracted_forced" if forced else event
+        text = pick_message(CONFIG["persona"], key, where)
         log(f"   ⚠️  {text}")
         notify("Study Monitor", text)
-        #added "event == distracted" so no new tab every repeat_seconds
-        if CONFIG["mode"] == "force" and event == "distracted": 
-            force_back(tracker.last_allowed)
     elif event == "refocused":
         log(f"   ✅ {pick_message(CONFIG['persona'], 'refocused', where)}")
 

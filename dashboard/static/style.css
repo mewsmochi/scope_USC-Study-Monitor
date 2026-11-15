@@ -1,0 +1,130 @@
+/* Base: dark green with white text */
+body {
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #061510;
+  color: #ffffff;
+  margin: 0;
+}
+main {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 1.5rem 2rem;
+  background: #0b2116;
+  border: 1px solid #1f5a3b;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+h1 { margin-top: 0; }
+h2 { color: #ffffff; }
+h3 { margin: 1.2rem 0 0.4rem; font-size: 1rem; color: #9be5b9; text-transform: uppercase; letter-spacing: 0.04em; }
+section { margin-bottom: 1rem; }
+
+/* Form controls */
+select, input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #2f7a52;
+  border-radius: 8px;
+  background: #081a11;
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+select option { background: #081a11; color: #ffffff; }
+input::placeholder { color: #8fb5a0; }
+button {
+  padding: 0.55rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: #22a35f;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0.25rem 0;
+}
+button:hover:not(:disabled) { background: #2bbf70; }
+button:disabled { background: #2b4a3a; color: #7f9d8c; cursor: not-allowed; }
+
+/* Tabs */
+#tabs { display: flex; gap: 0.4rem; border-bottom: 2px solid #1f5a3b; margin-bottom: 1rem; }
+.tab-button {
+  background: none; color: #a9cdb9; border-radius: 8px 8px 0 0;
+  padding: 0.5rem 1rem; margin: 0;
+}
+.tab-button:hover:not(:disabled) { background: #102c1d; }
+.tab-button.active { color: #ffffff; background: #102c1d; box-shadow: inset 0 -3px 0 #4ade80; }
+
+/* Hints, recommended box, dividers */
+.hint { color: #a9cdb9; font-size: 0.85rem; margin: 0.3rem 0 0.8rem; }
+small { color: #a9cdb9; }
+.recommended-box {
+  border: 1px solid #4ade80; background: #102c1d;
+  border-radius: 10px; padding: 0.7rem 0.9rem; margin: 0.8rem 0;
+}
+.badge {
+  background: #4ade80; color: #061510; font-size: 0.7rem; font-weight: 800;
+  padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: 0.4rem;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.divider { border: none; border-top: 1px solid #2f7a52; margin: 1.2rem 0; }
+
+/* Stats: big headline cards */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.8rem;
+  margin: 0.8rem 0 0.5rem;
+}
+.stat-card {
+  background: #102c1d;
+  border: 1px solid #2f7a52;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.stat-label { color: #a9cdb9; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-value { font-size: 1.6rem; font-weight: 800; line-height: 1.15; color: #ffffff; }
+.stat-prev { color: #a9cdb9; font-size: 0.85rem; }
+
+/* Stats: class table */
+.class-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.class-table th {
+  text-align: left; color: #a9cdb9; font-weight: 600; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.4rem 0.5rem; border-bottom: 1px solid #2f7a52;
+}
+.class-table td { padding: 0.55rem 0.5rem; border-bottom: 1px solid #1f5a3b; }
+.class-table td:first-child { font-weight: 700; }
+.bar { display: inline-block; width: 70px; height: 8px; background: #081a11; border-radius: 999px; overflow: hidden; vertical-align: middle; }
+.bar-fill { height: 100%; background: #4ade80; }
+.bar-label { margin-left: 0.4rem; font-size: 0.8rem; color: #d6f5e3; }
+
+/* Lists (no bullets, one rounded row each)*/
+#stats ul, #settings ul { list-style: none; padding: 0; margin: 0.2rem 0 0.6rem; }
+#stats li, #settings li {
+  background: #102c1d;
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  margin: 0.3rem 0;
+}
+#settings li { display: flex; justify-content: space-between; align-items: center; }
+#settings li button { padding: 0.1rem 0.6rem; font-size: 0.8rem; background: #3b6b52; margin: 0; }
+#settings li button:hover { background: #b93c3c; }
+
+/* ---------- Big centered timer ---------- */
+#timer-box { text-align: center; padding: 0.8rem 0 0.4rem; }
+#timer-phase {
+  color: #9be5b9; font-weight: 700; font-size: 0.95rem;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+#timer-display {
+  font-size: clamp(3.5rem, 16vw, 6rem);
+  font-weight: 800; line-height: 1.05;
+  font-variant-numeric: tabular-nums;   /* digits are equal width, so the clock doesn't wobble */
+}
+#timer-sub { color: #a9cdb9; font-size: 0.9rem; min-height: 1.3em; }
+#timer-box.break #timer-phase, #timer-box.break #timer-display { color: #facc15; }
+
+#timer-options label { margin-right: 0.8rem; }
+#pomo-fields input { width: 4.2rem; }

@@ -26,9 +26,6 @@ def classify(activity, config):
             return "neutral"
         if domain in ("127.0.0.1", "localhost"):
             return "neutral"   # the dashboard itself: not studying, not distracting
-        
-        if domain in ("127.0.0.1", "localhost"):
-            return "neutral"   # the dashboard itself: not studying, not distracting
-        
+
         return "allowed" if domain_matches(domain, config["allowed_domains"]) else "distracting"
     return "allowed" if app_matches(app, config["allowed_apps"]) else "distracting"

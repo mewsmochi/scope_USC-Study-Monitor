@@ -128,3 +128,86 @@ def close_orphan_sessions():
             UPDATE sessions
             SET "end" = COALESCE((SELECT MAX(ts) FROM events WHERE session_id = sessions.id), start)
             WHERE "end" IS NULL''')
+
+
+# ----- Stats -----
+
+# One row per stretch of time. How long each event lasted = next event's time minus its own;
+# the last event of a session runs until the session's end.
+SEGMENTS_SQL = '''
+SELECT e.session_id, c.name AS class_name, e.app, e.domain, e.status,
+       COALESCE(LEAD(e.ts) OVER (PARTITION BY e.session_id ORDER BY e.ts), s."end", e.ts) - e.ts AS secs
+FROM events e
+JOIN sessions s ON s.id = e.session_id
+JOIN classes c ON c.id = s.class_id
+ORDER BY e.session_id, e.ts
+'''
+
+
+def get_stats():
+    """Everything the dashboard's stats section shows, as one dictionary."""
+    with closing(connect()) as conn:
+        segs = conn.execute(SEGMENTS_SQL).fetchall()
+        recent = conn.execute('''
+            SELECT s.id, c.name AS class_name, s.start, s."end"
+            FROM sessions s JOIN classes c ON c.id = s.class_id
+            WHERE s."end" IS NOT NULL ORDER BY s.start DESC LIMIT 8''').fetchall()
+
+    allowed = distracting = 0.0
+    by_class = {}       # class name -> [focused secs, distracted secs]
+    distractions = {}   # site or app -> secs
+    per_session = {}    # session id -> [focused secs, distracted secs]
+    session_best = {}   # session id -> longest unbroken focus streak in that session
+    best = run = 0.0    # personal best = longest unbroken stretch on allowed things
+    current = None
+
+    for r in segs:
+        if r["session_id"] != current:       # new session: start a fresh streak
+            current, run = r["session_id"], 0.0
+            session_best.setdefault(current, 0.0)
+        secs = r["secs"] or 0
+        cls = by_class.setdefault(r["class_name"], [0.0, 0.0])
+        ses = per_session.setdefault(r["session_id"], [0.0, 0.0])
+        if r["status"] == "allowed":
+            allowed += secs
+            cls[0] += secs
+            ses[0] += secs
+            run += secs
+            best = max(best, run)
+            session_best[current] = max(session_best[current], run)
+        elif r["status"] == "distracting":
+            distracting += secs
+            cls[1] += secs
+            ses[1] += secs
+            run = 0.0                          # a distraction breaks the streak
+            key = r["domain"] or r["app"] or "Unknown"
+            distractions[key] = distractions.get(key, 0.0) + secs
+
+            # neutral, paused and stopped rows neither count nor break a streak
+
+    # Previous best = best streak from every session except the most recent one
+    ids = sorted(session_best)
+    prev_best = max((session_best[i] for i in ids[:-1]), default=None)
+
+    def pct(focused, distracted):
+        total = focused + distracted
+        return round(100 * focused / total) if total else None
+
+    return {
+        "productivity": pct(allowed, distracting),
+        "focused_seconds": round(allowed),
+        "distracted_seconds": round(distracting),
+        "personal_best_seconds": round(best),
+        "previous_best_seconds": round(prev_best) if prev_best is not None else None,
+        "by_class": sorted(
+            ({"name": n, "focused": round(f), "distracted": round(d)} for n, (f, d) in by_class.items()),
+            key=lambda x: -x["focused"]),
+        "top_distractions": sorted(
+            ({"name": n, "seconds": round(s)} for n, s in distractions.items()),
+            key=lambda x: -x["seconds"])[:5],
+        "recent_sessions": [
+            {"class": r["class_name"], "start": r["start"],
+             "minutes": round((r["end"] - r["start"]) / 60, 1),
+             "productivity": pct(*per_session.get(r["id"], [0, 0]))}
+            for r in recent],
+    }

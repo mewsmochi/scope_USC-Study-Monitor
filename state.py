@@ -9,6 +9,9 @@ _state = {
     "status": "Not connected", "app": None, "domain": None, "paused": False,
     # current session (None when no session is running)
     "session_id": None, "class_name": None, "session_start": None,
+    # timer
+    "mode": "regular", "work_seconds": 1500, "break_seconds": 300,
+    "paused_at": None, "paused_total": 0.0,
 }
 
 def update(**fields):

@@ -1,13 +1,30 @@
 {
   "mode": "force",
-  "persona": "kind",
-  "grace_seconds": 15,
+  "persona": "stern",
+  "grace_seconds": 10,
   "repeat_seconds": 30,
-
-  "allowed_apps": ["Code", "Terminal", "Finder", "Preview", "Notes"],
-  "allowed_domains": [
-    "docs.google.com", "drive.google.com", "github.com", "usc.edu",
-    "piazza.com", "gradescope.com", "stackoverflow.com", "claude.ai"
+  "allowed_apps": [
+    "Code",
+    "Terminal",
+    "Finder",
+    "Preview",
+    "Notes"
   ],
-  "neutral_apps": ["loginwindow", "ScreenSaverEngine", "Notification Center", "Spotlight", "Dock"]
+  "allowed_domains": [
+    "docs.google.com",
+    "drive.google.com",
+    "github.com",
+    "usc.edu",
+    "piazza.com",
+    "gradescope.com",
+    "stackoverflow.com",
+    "claude.ai"
+  ],
+  "neutral_apps": [
+    "loginwindow",
+    "ScreenSaverEngine",
+    "Notification Center",
+    "Spotlight",
+    "Dock"
+  ]
 }

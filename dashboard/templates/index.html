@@ -10,25 +10,163 @@
   <main>
     <h1>Study Monitor</h1>
 
-    <!--Class picker: choose a class, or add a new one -->
-    <section>
-      <label for="class-select">Class</label>
-      <select id="class-select"></select>
-      <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
-      <button id="add-class-button">Add</button>
-    </section>
+    <!-- Tab bar: each button shows the panel whose id is "tab-" + its data-tab -->
+    <nav id="tabs">
+      <button class="tab-button active" data-tab="session">Session</button>
+      <button class="tab-button" data-tab="stats">Stats</button>
+      <button class="tab-button" data-tab="settings">Settings</button>
+    </nav>
 
-    <!-- Session controls -->
-    <button id="session-button" disabled>Start session</button>
-    <p>Session: <span id="session-info">Not started</span></p>
+    <!-- ===== Tab 1: Session ===== -->
+        <!-- ===== Tab 1: Session ===== -->
+    <div class="panel" id="tab-session">
+      <!-- The big timer: the main thing you watch while studying -->
+      <div id="timer-box">
+        <div id="timer-phase">Ready</div>
+        <div id="timer-display">0:00</div>
+        <div id="timer-sub"></div>
+      </div>
 
-    <!-- Live activity (filled in by app.js) -->
-    <p>Status: <strong id="status">Not connected</strong></p>
-    <p>App: <span id="current-app">—</span></p>
-    <p>Website: <span id="current-domain">—</span></p>
+      <hr class="divider">
 
-    <!-- Pause only works during a session -->
-    <button id="pause-button" disabled>Pause monitoring</button>
+      <section>
+        <label for="class-select">Class</label>
+        <select id="class-select"></select>
+        <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
+        <button id="add-class-button">Add</button>
+        <p class="hint">
+          Pick a class from the list, or type a new name and click <b>Add</b>.
+          Classes are saved, so you only add each one once.
+          Choose one before you start a session.
+        </p>
+      </section>
+
+      <section id="timer-options">
+        <label>Timer
+          <select id="timer-mode">
+            <option value="regular">Regular (counts up)</option>
+            <option value="pomodoro">Pomodoro (focus / break)</option>
+          </select>
+        </label>
+        <span id="pomo-fields" hidden>
+          <label>Focus <input id="pomo-work" type="number" min="1" max="180" value="25"> min</label>
+          <label>Break <input id="pomo-break" type="number" min="1" max="60" value="5"> min</label>
+        </span>
+        <p class="hint">Regular counts up from zero. Pomodoro counts down through focus and break rounds. Fixed once the session starts.</p>
+      </section>
+
+      <section>
+        <button id="session-button" disabled>Start session</button>
+        <p>Session: <span id="session-info">Not started</span></p>
+      </section>
+
+      <hr class="divider">
+
+      <section>
+        <p>Status: <strong id="status">Not connected</strong></p>
+        <p>App: <span id="current-app">—</span></p>
+        <p>Website: <span id="current-domain">—</span></p>
+      </section>
+
+      <hr class="divider">
+
+      <section>
+        <button id="pause-button" disabled>Pause monitoring</button>
+        <p class="hint">Warnings only happen while a session is running. Paused time isn't counted on the timer.</p>
+      </section>
+    </div>
+
+    <!-- ===== Tab 2: Stats ===== -->
+    <div class="panel" id="tab-stats" hidden>
+      <section id="stats">
+        <h2>Stats</h2>
+
+        <div class="stat-cards">
+          <div class="stat-card">
+            <span class="stat-label">Productivity</span>
+            <strong id="stat-productivity" class="stat-value">—</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Focused / distracted</span>
+            <strong id="stat-totals" class="stat-value">—</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Personal best (unbroken focus)</span>
+            <strong class="stat-value"><span id="stat-best">—</span> ⭐</strong>
+            <span class="stat-prev">(prev best: <span id="stat-prev-best">—</span>)</span>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <h3>By class</h3>
+        <table class="class-table">
+          <thead>
+            <tr><th>Class</th><th>Focused</th><th>Distracted</th><th>Focus</th></tr>
+          </thead>
+          <tbody id="stat-classes"></tbody>
+        </table>
+
+        <hr class="divider">
+
+        <h3>Top distractions</h3>
+        <ul id="stat-distractions"></ul>
+
+        <hr class="divider">
+
+        <h3>Recent sessions</h3>
+        <ul id="stat-sessions"></ul>
+      </section>
+    </div>
+
+    <!-- ===== Tab 3: Settings ===== -->
+    <div class="panel" id="tab-settings" hidden>
+      <section id="settings">
+        <h2>Settings</h2>
+        <p><label>Mode <select id="set-mode"></select></label>
+           <small>warn = notification only, force = also switches you back</small></p>
+        <p><label>Persona <select id="set-persona"></select></label></p>
+        <p><label>Grace period (s) <input id="set-grace" type="number" min="1" max="3600"></label></p>
+        <p><label>Repeat every (s) <input id="set-repeat" type="number" min="1" max="3600"></label></p>
+        <button id="save-settings">Save settings</button>
+        <span id="settings-msg"></span>
+
+        <hr class="divider">
+
+        <h2>Allowed apps and websites</h2>
+        <p class="hint">
+          Anything on these lists counts as studying. Anything else starts the
+          grace-period timer and triggers a warning.
+        </p>
+
+        <div class="recommended-box">
+          <button id="allow-current-button">Allow what I'm on now</button>
+          <span class="badge">Recommended</span>
+          <span id="allow-current-msg"></span>
+          <p class="hint">
+            The easiest, most accurate way to add something. Click the button, then within
+            5 seconds <b>switch to the app or website you want to allow</b>
+            (the dashboard can't see other apps from here, so it checks whatever
+            is in front when the countdown ends). It saves the exact name, so it always matches.
+          </p>
+        </div>
+
+        <hr class="divider">
+
+        <h3>Allowed apps</h3>
+        <ul id="list-apps"></ul>
+        <input id="add-app-input" placeholder="App name, e.g. Notion">
+        <button id="add-app-button">Add</button>
+
+        <hr class="divider">
+
+        <h3>Allowed websites</h3>
+        <ul id="list-sites"></ul>
+        <input id="add-site-input" placeholder="e.g. piazza.com">
+        <button id="add-site-button">Add</button>
+        <p class="hint">Typing works too, but the name must match what the app is called exactly.</p>
+      </section>
+    </div>
   </main>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
