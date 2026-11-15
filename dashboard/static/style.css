@@ -50,3 +50,69 @@ td button:hover { background: #b93c3c !important; }
 
 form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .error { color: #ff8a8a; }
+
+/* Settings and allowlist */
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0.3rem 0 0.8rem; }
+small { color: var(--muted); }
+#settings p { margin: 0.5rem 0; }
+#settings input[type=number] { width: 5rem; }
+h3 { margin: 1.2rem 0 0.4rem; font-size: 0.9rem; color: #9be5b9; text-transform: uppercase; letter-spacing: 0.04em; }
+main ul { list-style: none; padding: 0; margin: 0.2rem 0 0.6rem; }
+main ul li {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--card); border-radius: 8px; padding: 0.4rem 0.8rem; margin: 0.3rem 0;
+}
+main ul li button.remove {
+  padding: 0 0.5rem;
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  height: 1.4rem;
+  min-width: 0;
+  border-radius: 6px;
+  background: #3b6b52;
+}
+main ul li button.remove:hover { background: #b93c3c; }
+main ul li { padding: 0.3rem 0.8rem; }
+.recommended-box {
+  border: 1px solid var(--accent); background: var(--card);
+  border-radius: 10px; padding: 0.7rem 0.9rem; margin: 0.8rem 0;
+}
+.badge {
+  background: var(--accent); color: #061510; font-size: 0.7rem; font-weight: 800;
+  padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: 0.4rem;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+/* Tabs */
+#tabs { display: flex; gap: 0.4rem; border-bottom: 2px solid #1f5a3b; margin-bottom: 1rem; }
+.tab-button {
+  background: none; color: var(--muted); border-radius: 8px 8px 0 0;
+  padding: 0.5rem 1rem; margin: 0;
+}
+.tab-button:hover:not(:disabled) { background: var(--card); }
+.tab-button.active { color: #fff; background: var(--card); box-shadow: inset 0 -3px 0 var(--accent); }
+.panel[hidden] { display: none; }
+
+/* Allowlist rows and compact Remove buttons (targets the lists by id so nothing can override it) */
+#list-apps, #list-sites { list-style: none !important; padding: 0 !important; margin: 0.3rem 0 0.8rem !important; }
+#list-apps li, #list-sites li {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card);
+  border-radius: 8px;
+  padding: 0.25rem 0.7rem !important;
+  margin: 0.25rem 0 !important;
+}
+#list-apps li button, #list-sites li button {
+  padding: 0 0.5rem !important;
+  margin: 0 !important;
+  height: 1.3rem !important;
+  min-width: 0 !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border-radius: 6px !important;
+  background: #3b6b52 !important;
+}
+#list-apps li button:hover, #list-sites li button:hover { background: #b93c3c !important; }

@@ -10,69 +10,119 @@
   <main>
     <h1>Study Monitor</h1>
 
-    <!--Class picker: choose a class, or add a new one -->
-    <section>
-      <label for="class-select">Class</label>
-      <select id="class-select"></select>
-      <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
-      <button id="add-class-button">Add</button>
-    </section>
+    <nav id="tabs">
+      <button class="tab-button active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-button" data-tab="settings">Settings</button>
+    </nav>
 
-    <!-- Session controls -->
-    <section>
-      <label for="timer-select">Timer</label>
-      <select id="timer-select">
-        <option value="regular">Regular (counts up)</option>
-        <option value="pomodoro">Pomodoro</option>
-      </select>
-      <button id="session-button" disabled>Start session</button>
-    </section>
-    <p>Session: <span id="session-info">Not started</span></p>
-    <p id="last-summary" hidden></p>
+    <!-- ===== Tab 1: Dashboard ===== -->
+    <div class="panel" id="tab-dashboard">
 
-    <!-- Live activity (filled in by app.js) -->
-    <p>Status: <strong id="status">Not connected</strong></p>
-    <p>App: <span id="current-app">—</span></p>
-    <p>Website: <span id="current-domain">—</span></p>
+      <!--Class picker: choose a class, or add a new one -->
+      <section>
+        <label for="class-select">Class</label>
+        <select id="class-select"></select>
+        <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
+        <button id="add-class-button">Add</button>
+      </section>
 
-    <!-- Pause only works during a session -->
-    <button id="pause-button" disabled>Pause monitoring</button>
+      <!-- Session controls -->
+      <section>
+        <label for="timer-select">Timer</label>
+        <select id="timer-select">
+          <option value="regular">Regular (counts up)</option>
+          <option value="pomodoro">Pomodoro</option>
+        </select>
+        <button id="session-button" disabled>Start session</button>
+      </section>
+      <p>Session: <span id="session-info">Not started</span></p>
+      <p id="last-summary" hidden></p>
 
-    <h2>Last 7 days</h2>
-    <div class="tiles">
-      <div class="tile"><span class="label">Focused</span><span id="week-focused" class="value">—</span></div>
-      <div class="tile"><span class="label">Productivity</span><span id="week-productivity" class="value">—</span></div>
-      <div class="tile"><span class="label">Personal best (all time)</span><span id="personal-best" class="value">—</span></div>
+      <!-- Live activity (filled in by app.js) -->
+      <p>Status: <strong id="status">Not connected</strong></p>
+      <p>App: <span id="current-app">—</span></p>
+      <p>Website: <span id="current-domain">—</span></p>
+
+      <!-- Pause only works during a session -->
+      <button id="pause-button" disabled>Pause monitoring</button>
+
+      <h2>Last 7 days</h2>
+      <div class="tiles">
+        <div class="tile"><span class="label">Focused</span><span id="week-focused" class="value">—</span></div>
+        <div class="tile"><span class="label">Productivity</span><span id="week-productivity" class="value">—</span></div>
+        <div class="tile"><span class="label">Personal best (all time)</span><span id="personal-best" class="value">—</span></div>
+      </div>
+
+      <h2>Deadlines</h2>
+      <table>
+        <thead><tr><th>Due</th><th>Class</th><th>Title</th><th>Studied this week</th><th></th></tr></thead>
+        <tbody id="deadlines"></tbody>
+      </table>
+      <form id="deadline-form">
+        <select id="deadline-class" aria-label="Class" required></select>
+        <input id="deadline-title" aria-label="Title" placeholder="Midterm 1" maxlength="200" required>
+        <input id="deadline-date" aria-label="Due date" type="date" required>
+        <button type="submit">Add deadline</button>
+        <span id="deadline-error" class="error" role="alert"></span>
+      </form>
+
+      <h2>Focused hours per class</h2>
+      <canvas id="class-chart" height="120" aria-label="Focused hours per class"></canvas>
+
+      <h2>Top distractions</h2>
+      <ol id="distractions"></ol>
+
+      <h2>Recent sessions</h2>
+      <table>
+        <thead><tr><th>Started</th><th>Class</th><th>Timer</th><th>Focused</th><th>Productivity</th><th>Warnings</th></tr></thead>
+        <tbody id="sessions"></tbody>
+      </table>
     </div>
 
-    <h2>Deadlines</h2>
-    <table>
-      <thead><tr><th>Due</th><th>Class</th><th>Title</th><th>Studied this week</th><th></th></tr></thead>
-      <tbody id="deadlines"></tbody>
-    </table>
-    <form id="deadline-form">
-      <select id="deadline-class" aria-label="Class" required></select>
-      <input id="deadline-title" aria-label="Title" placeholder="Midterm 1" maxlength="200" required>
-      <input id="deadline-date" aria-label="Due date" type="date" required>
-      <button type="submit">Add deadline</button>
-      <span id="deadline-error" class="error" role="alert"></span>
-    </form>
+    <!-- ===== Tab 2: Settings ===== -->
+    <div class="panel" id="tab-settings" hidden>
+      <h2>Settings</h2>
+      <div id="settings">
+        <p><label>Mode <select id="set-mode"></select></label>
+           <small>warn = notification only, force = also switches you back</small></p>
+        <p><label>Persona <select id="set-persona"></select></label></p>
+        <div id="set-numbers"></div>
+        <button id="save-settings">Save settings</button>
+        <span id="settings-msg"></span>
+        <p class="hint">Changes apply within 5 seconds. Pomodoro changes apply to the next session.</p>
+      </div>
 
-    <h2>Focused hours per class</h2>
-    <canvas id="class-chart" height="120" aria-label="Focused hours per class"></canvas>
+      <h2>Allowed apps and websites</h2>
+      <p class="hint">Anything on these lists counts as studying. Anything else starts the grace-period timer and triggers a warning.</p>
 
-    <h2>Top distractions</h2>
-    <ol id="distractions"></ol>
+      <div class="recommended-box">
+        <button id="allow-current-button">Allow what I'm on now</button>
+        <span class="badge">Recommended</span>
+        <span id="allow-current-msg"></span>
+        <p class="hint">
+          The easiest, most accurate way to add something. Click the button, then within 5 seconds
+          <b>switch to the app or website you want to allow</b>. The dashboard can't see other apps
+          from here, so it checks whatever is in front when the countdown ends. It saves the exact name, so it always matches.
+        </p>
+      </div>
 
-    <h2>Recent sessions</h2>
-    <table>
-      <thead><tr><th>Started</th><th>Class</th><th>Timer</th><th>Focused</th><th>Productivity</th><th>Warnings</th></tr></thead>
-      <tbody id="sessions"></tbody>
-    </table>
+      <h3>Allowed apps</h3>
+      <ul id="list-apps"></ul>
+      <input id="add-app-input" placeholder="App name, e.g. Notion">
+      <button id="add-app-button">Add</button>
+
+      <h3>Allowed websites</h3>
+      <ul id="list-sites"></ul>
+      <input id="add-site-input" placeholder="e.g. piazza.com">
+      <button id="add-site-button">Add</button>
+      <p class="hint">Typing works too, but an app name must match what the app is called exactly.</p>
+    </div>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
   <script src="{{ url_for('static', filename='stats.js') }}"></script>
+  <script src="{{ url_for('static', filename='settings.js') }}"></script>
+  <script src="{{ url_for('static', filename='tabs.js') }}"></script>
 </body>
 </html>
