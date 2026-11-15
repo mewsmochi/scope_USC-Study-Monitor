@@ -1,0 +1,13 @@
+/* Top distractions (rendered by stats.js) */
+#distraction-range { display: inline-flex; gap: 4px; margin-bottom: 8px; }
+#distraction-range button { font-size: 0.85rem; padding: 4px 10px; opacity: 0.6; }
+#distraction-range button[aria-pressed="true"] { opacity: 1; font-weight: 600; }
+#distractions { padding-left: 1.5rem; }
+.distraction { margin-bottom: 12px; }
+.distraction-head { display: flex; align-items: baseline; gap: 8px; }
+.distraction-name { font-weight: 600; overflow-wrap: anywhere; }
+.distraction-kind { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.distraction-time { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.distraction-bar { height: 6px; margin: 4px 0; border-radius: 3px; background: var(--line); opacity: 0.9; }
+.distraction-bar span { display: block; height: 100%; border-radius: 3px; background: var(--accent, #e8590c); }
+.distraction-meta { color: var(--muted); font-size: 0.8rem; }

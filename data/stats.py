@@ -53,13 +53,48 @@ def longest_focus(events, max_gap):
     return best
 
 
-def distraction_time(events, max_gap):
-    """{website or app: seconds spent on it while it counted as distracting}"""
-    totals = defaultdict(float)
+def _distraction_name(row):
+    return row["domain"] or row["app"] or "Unknown"
+
+
+def distractions(events, max_gap):
+    """{website or app: {"kind", "seconds", "visits", "warnings"}} for one session.
+
+    seconds:  time on it while it counted as distracting
+    visits:   how many times you switched to it
+    warnings: distracted/still_distracted alerts it triggered
+    """
+    totals = {}
+
+    def entry(row):
+        name = _distraction_name(row)
+        return totals.setdefault(name, {"kind": "site" if row["domain"] else "app",
+                                        "seconds": 0.0, "visits": 0, "warnings": 0})
+
     for row, start, end in intervals(events, max_gap):
         if row["status"] == "distracting":
-            totals[row["domain"] or row["app"] or "Unknown"] += end - start
-    return dict(totals)
+            entry(row)["seconds"] += end - start
+    for e in events:
+        if e["kind"] == "activity" and e["status"] == "distracting":
+            entry(e)["visits"] += 1
+        elif e["kind"] == "alert" and e["status"] in ("distracted", "still_distracted"):
+            entry(e)["warnings"] += 1
+    return totals
+
+
+def _add_distractions(into, more):
+    for name, d in more.items():
+        t = into.setdefault(name, {"kind": d["kind"], "seconds": 0.0, "visits": 0, "warnings": 0})
+        for k in ("seconds", "visits", "warnings"):
+            t[k] += d[k]
+
+
+def _rank(totals, n=10):
+    """Top n by time, with each one's share of all distracted time (%)."""
+    all_secs = sum(d["seconds"] for d in totals.values())
+    ranked = sorted(totals.items(), key=lambda kv: (-kv[1]["seconds"], -kv[1]["warnings"]))[:n]
+    return [{"name": name, **d, "share": 100 * d["seconds"] / all_secs if all_secs else 0.0}
+            for name, d in ranked]
 
 
 def productivity(focused, distracted):
@@ -95,7 +130,7 @@ def report(classes, sessions, events, deadlines, now, low_study_hours, max_gap=M
     week_ago = now - 7 * 86400
     per_class = {c["id"]: {"id": c["id"], "name": c["name"], "focused": 0.0, "week_focused": 0.0}
                  for c in classes}
-    distractions = defaultdict(float)
+    all_distractions, week_distractions = {}, {}
     week = {"focused": 0.0, "distracted": 0.0}
     recent, best = [], 0.0
 
@@ -104,14 +139,15 @@ def report(classes, sessions, events, deadlines, now, low_study_hours, max_gap=M
         evs = by_session.get(s["id"], [])
         summary = summarize(evs, max_gap)
         best = max(best, longest_focus(evs, max_gap))
-        for name, secs in distraction_time(evs, max_gap).items():
-            distractions[name] += secs
+        d = distractions(evs, max_gap)
+        _add_distractions(all_distractions, d)
         c = per_class.get(s["class_id"])
         if c:
             c["focused"] += summary["focused"]
         if s["start"] >= week_ago:
             week["focused"] += summary["focused"]
             week["distracted"] += summary["distracted"]
+            _add_distractions(week_distractions, d)
             if c:
                 c["week_focused"] += summary["focused"]
         recent.append({"id": s["id"], "class": names.get(s["class_id"], "—"), "mode": s["mode"],
@@ -136,8 +172,8 @@ def report(classes, sessions, events, deadlines, now, low_study_hours, max_gap=M
         "classes": sorted(per_class.values(), key=lambda c: -c["focused"]),
         "recent_sessions": recent[::-1][:10],
         "personal_best": best,
-        "top_distractions": [{"name": n, "seconds": s} for n, s in
-                             sorted(distractions.items(), key=lambda kv: -kv[1])[:10]],
+        "top_distractions": _rank(all_distractions),
+        "top_distractions_week": _rank(week_distractions),
         "week": {**week, "productivity": productivity(week["focused"], week["distracted"])},
         "deadlines": sorted(upcoming, key=lambda d: d["due_date"]),
     }
