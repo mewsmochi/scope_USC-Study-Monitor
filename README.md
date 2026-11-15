@@ -2,8 +2,24 @@
 
 A study monitor that keeps you focused, tracks your progress, and tells you what to study next.
 
-**Platform:** macOS first, iPad later
-**Stack:** Python + PyObjC, SQLite, Flask + Chart.js
+Tunnl watches which app or website you're on during a study session. If you drift off your allowed list, it gives you a heads-up, then (optionally) pulls you back. It records every session so you can see your focus, your biggest distractions, and which deadline needs attention first.
+
+**Platform:** macOS
+**Stack:** Python + PyObjC, SQLite, Flask, Chart.js
+
+## Features
+
+- **Focus monitoring:** detects the frontmost app and the active browser tab (Chrome, Safari, Brave, Edge, Arc).
+- **Allowlist:** apps and websites that count as studying. Everything else starts a grace-period timer.
+- **Two warning modes:**
+  - **Warn:** a notification as soon as you drift, and another once the grace period runs out.
+  - **Force:** the same heads-up, then Tunnl switches you back to your last study app or page (reusing the existing tab instead of opening a new one).
+- **Personas:** *Base*, *Kind* and *Stern* change the tone of the warnings.
+- **Sessions:** pick a class, then run a Regular (counts up) or Pomodoro timer. Pomodoro focus, break and round counts can be set per session.
+- **Pause button** for breaks, plus idle detection.
+- **Stats:** productivity %, last 7 days, personal best, per-class focused hours, top distractions, recent sessions.
+- **Deadlines:** add midterms and finals, see the next one coming up and what to study first. A deadline is flagged ⚠️ when it's due within 2 weeks and you've studied that class less than your weekly target.
+- **Settings tab:** change mode, persona and timers, and edit the allowlist from the dashboard. "Allow what I'm on now" saves exactly what the monitor sees, so names always match.
 
 ## Setup
 
@@ -19,28 +35,55 @@ On first run, `config.json` is created from `config.example.json`. It's git-igno
 
 ### macOS permissions
 
-macOS asks for these the first time they're needed. If you missed a prompt, turn them on in **System Settings → Privacy & Security**:
+macOS asks for these the first time they're needed. If you missed a prompt, turn them on in **System Settings → Privacy & Security** (or **Notifications**):
 
-- **Automation:** allow the app you run Python from (VS Code or Terminal) to control each browser you use (Google Chrome, Safari, Brave, Edge, Arc). Without this, websites can't be detected and browser tabs show up as neutral.
-- **Notifications:** allow **Script Editor**. macOS sends `osascript` notifications under Script Editor's name, so warnings won't appear without it.
+- **Automation:** allow the app you run Python from (VS Code or Terminal) to control each browser you use. Tunnl needs this to read the current tab's URL and to switch back to a study tab in Force mode. Without it, websites can't be detected and browser tabs show up as neutral.
+- **Notifications:** allow **Script Editor**. macOS sends `osascript` notifications under Script Editor's name, so warnings won't appear without it. Also check that no Focus mode (Do Not Disturb) is on.
 
 ## Run
 
 ```bash
 python main.py                  # starts the monitor and the dashboard
-python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace period
+python -m rules.config_editor   # optional terminal menu for the same settings
 ```
 
-- Open http://127.0.0.1:5050, pick or add a class, choose Regular or Pomodoro, and press **Start session**.
-  The dashboard also shows live status, the session timer and a pause button, plus
-  stats (last 7 days, personal best, per-class hours, top distractions, recent sessions) and deadlines.
-  Add deadlines there. One is flagged ⚠️ when it's due within 2 weeks and you've studied that class less than
-  `low_study_hours` (default 3) this week.
-- End a session with **Stop session**. A Pomodoro session also ends on its own after the last round.
-  Either way you get a summary (total time, focused time, productivity %, warnings) in the terminal and on the dashboard.
-  Ctrl+C quits the monitor and closes any running session first.
-- Pomodoro lengths and round count, the idle cutoff, and the deadline flag are in `config.json`
-  (`pomodoro_*`, `idle_seconds`, `low_study_hours`).
+Open http://127.0.0.1:5050 (the dashboard only listens on your own computer).
+
+1. **Settings tab → Allowed apps and websites:** click **Allow what I'm on now** (recommended), then within 5 seconds switch to the app or site you want to allow. The dashboard can't see other apps, so it saves whatever is in front when the countdown ends. Do this for each study app and site.
+2. **Dashboard tab:** pick or add a class, choose Regular or Pomodoro, and press **Start session**.
+3. Study. Leave your allowed list and you'll get a heads-up; stay away past the grace period and you'll get a second message (and be sent back in Force mode).
+4. Press **Stop session** (a Pomodoro session also ends after its last round). You get a summary of total time, focused time, productivity % and warnings, in the terminal and on the dashboard. Ctrl+C quits Tunnl and closes any running session first.
+
+Warnings and logging only happen while a session is running.
+
+## Settings
+
+Change these in the Settings tab (applied within about 5 seconds), or edit `config.json`:
+
+| Setting | Meaning |
+|---|---|
+| `mode` | `warn` or `force` |
+| `persona` | `base`, `kind` or `stern` |
+| `grace_seconds` | time off the allowlist before the second warning |
+| `repeat_seconds` | how often the "still distracted" reminder repeats |
+| `idle_seconds` | no input for this long counts as idle |
+| `pomodoro_work_minutes`, `pomodoro_break_minutes`, `pomodoro_rounds` | defaults for Pomodoro sessions |
+| `low_study_hours` | weekly hours below which a deadline is flagged |
+
+Pomodoro changes apply to the next session.
+
+## Project layout
+
+```
+main.py         # monitor loop: detect, classify, warn, log
+monitor/        # frontmost app and browser URL detection
+rules/          # allowlist rules, focus tracker, config editor
+alerts/         # notifications, force-back, persona messages
+sessions/       # session control and Pomodoro timer
+data/           # SQLite database and stats
+dashboard/      # Flask server, page, scripts and styles
+tests/          # pytest suite
+```
 
 ## Tests
 
@@ -48,74 +91,37 @@ python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace 
 python -m pytest
 ```
 
-The tests cover the focus tracker, allowlist rules, duration stats, the dashboard report, the Pomodoro timer, and the dashboard API (including blocking requests from other websites). None of them call macOS APIs, so they also run without PyObjC. GitHub Actions runs them on Linux for every PR and every push to `main` (`.github/workflows/tests.yml`).
+The tests cover the focus tracker, allowlist rules, duration stats, the dashboard report, the Pomodoro timer, and the dashboard API (including blocking requests from other websites). None of them call macOS APIs, so they also run without PyObjC. GitHub Actions runs them on Linux for every PR and every push to `main`.
 
 ## Known limitations
 
 - Only the frontmost window is checked. A distracting video in a second window or on another monitor goes unnoticed.
 - Only the active tab of the front browser window is read.
-- Pausing doesn't freeze the Pomodoro clock: it keeps running on wall-clock time.
-- Productivity = focused ÷ (focused + distracted). Idle, neutral, pause, and break time count neither for nor against you.
-- The dashboard needs internet once to load Chart.js from a CDN. Without it the chart is skipped and everything else still works.
+- Pausing doesn't freeze the timer display or the Pomodoro clock: they keep running on wall-clock time.
+- Productivity = focused ÷ (focused + distracted). Idle, neutral, pause and break time count neither for nor against you.
+- Typed app names must match the name macOS reports for the running app (for example VS Code is `Code`). Use **Allow what I'm on now** to avoid mismatches.
+- The dashboard needs internet once to load Chart.js and the title font. Without it the chart is skipped and the title uses a system font; everything else still works.
 - Up to ~40 seconds before a sleep or crash may be left out of the stats (time is tracked with a 30s heartbeat).
 
 ## Roadmap
 
-### Phase 0: Decisions & Setup
-- [x] Choose the stack (Python + PyObjC for Mac)
-- [x] Set up the repo, virtual environment, and project folders
-  ```
-  study-monitor/
-    monitor/      # active app/URL detection
-    rules/        # allowlist + grace-period logic
-    sessions/     # timer, class picker, logging
-    data/         # SQLite database
-    dashboard/    # stats + deadlines UI
-  ```
+**Done**
+- [x] Core detector: frontmost app and browser tab URL
+- [x] Allowlist, grace-period state machine, Warn and Force modes, personas
+- [x] Sessions, class picker, Regular and Pomodoro timers
+- [x] SQLite event logging
+- [x] Stats, deadlines, and the web dashboard
+- [x] Settings and allowlist editor on the dashboard
+- [x] Pause button
 
-### Phase 1: Core Detector
-Print what you're looking at once per second.
-- [x] Detect the frontmost app (`NSWorkspace`)
-- [x] Detect the active browser tab URL (Chrome, Safari, Brave, Edge, Arc via AppleScript)
-- [x] Handle macOS Automation and Accessibility permissions
-
-### Phase 2: Rules, Warnings & Enforcement
-- [x] Allowlist of apps and website domains (`config.json`)
-- [x] Grace-period state machine: `FOCUSED` → `DRIFTING` → `DISTRACTED` (configurable, e.g. 5 vs. 10 sec)
-- [x] **Gentle mode:** notification or popup reminding you to get back to studying
-- [x] **Strict mode:** bring the last allowed app back to the front
-- [x] Character personas that change the tone of warnings (*kind*, *stern*, *drill sergeant*, ...)
-
-### Phase 3: Sessions, Timers & Class Picker
-- [x] SQLite database (`classes`, `sessions`, `events`, `deadlines`)
-- [x] Pick a class before starting a session
-- [x] Regular timer and Pomodoro timer (e.g. 25/5)
-- [x] Log every app/site switch during a session
-
-### Phase 4: Stats & Dashboard
-- [x] Productivity %: focused time ÷ (focused + distracted time)
-- [x] Personal Best: longest unbroken focused stretch
-- [x] Top distracting websites/apps, ranked
-- [x] Per-class totals: see which classes you've studied most and which need more attention
-- [x] Deadline dashboard: upcoming midterms/finals sorted by date, flagged when study hours are low
-- [x] Local web dashboard (Flask + Chart.js)
+**Next**
+- [ ] Freeze the timer while paused
 - [ ] Menu bar app (`rumps`)
+- [ ] Package as a `.app` with `py2app`, with start at login
 
-### Phase 5: Package as a Real App
-- [ ] Package as a `.app` with `py2app`
-- [ ] Start at login
-- [ ] Settings screen: allowlist, grace period, persona (terminal version done: `python -m rules.config_editor`)
-- [x] Pause button (on the dashboard)
-- [ ] Dogfood it for a week and fix what annoys you
+## Future ideas
 
-### Phase 6: Webcam Phone Detection (Stretch)
-- [ ] Grab a webcam frame every 3–5 seconds with OpenCV
-- [ ] Detect "cell phone" with YOLOv8n (pretrained on COCO)
-- [ ] Count a distraction only after a few consecutive detections
-- [ ] Opt-in, processed locally, frames never saved
+These were part of the original plan but aren't built yet.
 
-### Phase 7: iPad Integration (Stretch)
-- [ ] Swift/SwiftUI companion app
-- [ ] Use Apple's Screen Time API (FamilyControls / DeviceActivity) to block distracting apps during a session
-- [ ] Sync sessions between Mac and iPad (iCloud or a small backend)
-- [ ] Note: iPadOS doesn't let apps read other apps' usage, so the iPad can block distractions but not track them. This also needs a paid Apple Developer account.
+- **Webcam phone detection:** grab a webcam frame every few seconds with OpenCV, detect "cell phone" with YOLOv8n (pretrained on COCO), and count a distraction only after several consecutive detections. It would be opt-in, processed locally, with frames never saved.
+- **iPad companion app (Swift/SwiftUI):** iPadOS doesn't let apps see which other apps you use, so the iPad app could only *block* distracting apps during a session through Apple's Screen Time API (FamilyControls / DeviceActivity), not track them. Needs a paid Apple Developer account, plus a way to sync sessions with the Mac.
