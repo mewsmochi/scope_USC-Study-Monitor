@@ -9,6 +9,8 @@ from rules.focus_tracker import FocusTracker
 from alerts.messages import pick_message
 from alerts.actions import notify, force_back
 from rules.config_editor import load_config
+from data.db import init_db, log_event
+
 
 import threading
 import state
@@ -54,6 +56,7 @@ def handle(event, activity, tracker):
 
 def main():
     global CONFIG
+    init_db()
     threading.Thread(target=run_dashboard, daemon=True).start()
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
@@ -82,17 +85,21 @@ def main():
         # Paused from the dashboard: keep showing live activity, but skip warnings
         paused = state.snapshot()["paused"]
         if paused:
+            if not was_paused:
+                log_event(None, None, "paused")   # marks when the pause began
             was_paused = True
             wait(POLL_SECONDS)
             continue
         if was_paused:
             # Resuming: start with a fresh tracker so an old drift timer can't fire instantly
             tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
+            last_label = None   # forces the current activity to be logged again
             was_paused = False
 
         current = label(activity)
         if current != last_label:
             log(f"{current}  [{status}]")
+            log_event(activity["app"], activity["domain"], status)
             last_label = current
 
         event = tracker.update(activity, status, time.monotonic())
@@ -106,4 +113,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        log_event(None, None, "stopped")
         print("\nStopped.")
