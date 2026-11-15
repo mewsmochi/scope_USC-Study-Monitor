@@ -1,5 +1,5 @@
-/* Page title font (must stay the first rule in the file) */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap");
+/* Heading font: Sansita Black (SIL Open Font License, commercial use OK). Must stay the first rule. */
+@import url("https://fonts.googleapis.com/css2?family=Sansita:wght@900&display=swap");
 
 :root {
   --bg: #061510;      /* page */
@@ -11,6 +11,7 @@
   --accent: #4ade80;
   --panel: #0b2116;   /* main card */
   --input: #081a11;
+  --display-font: "Sansita", "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
 /* ---------- Base ---------- */
@@ -21,16 +22,18 @@ main {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 main h1 {
-  font-family: "Poppins", "Avenir Next", "Trebuchet MS", sans-serif;
+  font-family: var(--display-font);
   font-size: 3.6rem;
   line-height: 1.05;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.01em;
   text-align: center;
   margin: 0 0 1.2rem;
   color: #ffffff;
   text-shadow: 0 2px 14px rgba(74, 222, 128, 0.35);   /* soft green glow */
 }
+/* Sansita is only loaded in Black (900), so ask for 900 everywhere it's used */
+h2, h3, .tab-button { font-family: var(--display-font); font-weight: 900; }
 h2 {
   margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--line);
   font-size: 1rem; color: #9be5b9; text-transform: uppercase; letter-spacing: 0.05em;
