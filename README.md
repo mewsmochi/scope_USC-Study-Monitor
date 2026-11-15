@@ -1,4 +1,4 @@
-# [NAME] 📚
+# Tunnl 📚
 
 A study monitor that keeps you focused, tracks your progress, and tells you what to study next.
 
