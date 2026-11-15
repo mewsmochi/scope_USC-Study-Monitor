@@ -24,5 +24,11 @@ def classify(activity, config):
         # New tab, settings page, no window, or URL unreadable: don't judge it
         if not url or not url.startswith(("http://", "https://")):
             return "neutral"
+        if domain in ("127.0.0.1", "localhost"):
+            return "neutral"   # the dashboard itself: not studying, not distracting
+        
+        if domain in ("127.0.0.1", "localhost"):
+            return "neutral"   # the dashboard itself: not studying, not distracting
+        
         return "allowed" if domain_matches(domain, config["allowed_domains"]) else "distracting"
     return "allowed" if app_matches(app, config["allowed_apps"]) else "distracting"
