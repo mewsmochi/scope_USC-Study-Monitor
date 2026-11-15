@@ -1,3 +1,5 @@
+# site url: http://127.0.0.1:5050
+
 import time
 from datetime import datetime
 
@@ -9,12 +11,13 @@ from rules.focus_tracker import FocusTracker
 from alerts.messages import pick_message
 from alerts.actions import notify, force_back
 from rules.config_editor import load_config
-from data.db import init_db, log_event
 
 
 import threading
 import state
 from dashboard.server import run as run_dashboard
+
+from data.db import init_db, log_event, end_session, close_orphan_sessions
 
 
 CONFIG = load_config()
@@ -57,12 +60,14 @@ def handle(event, activity, tracker):
 def main():
     global CONFIG
     init_db()
-    threading.Thread(target=run_dashboard, daemon=True).start()
+    close_orphan_sessions() #  tidy up any session left open by a crash
+    threading.Thread(target=run_dashboard, daemon=True).start() # dashboard runs in the background
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
         f"grace={CONFIG['grace_seconds']}s (Ctrl+C to stop)")
     last_label = None
     was_paused = False
+    active_session = None 
     last_reload = time.monotonic()
 
     while True:
@@ -78,15 +83,32 @@ def main():
         
         activity = get_current_activity()
         status = classify(activity, CONFIG)
-
         # Publish to the dashboard's shared board (see state.py)
         state.update(status=status, app=activity["app"], domain=activity["domain"])
 
-        # Paused from the dashboard: keep showing live activity, but skip warnings
-        paused = state.snapshot()["paused"]
-        if paused:
+        snap = state.snapshot()
+
+        # No session running: show live activity but track nothing
+        if snap["session_id"] is None:
+            if active_session is not None:   # a session just ended
+                active_session = None
+                was_paused = False
+                log("Session ended")
+            wait(POLL_SECONDS)
+            continue
+
+        # A new session just started: reset everything
+        if snap["session_id"] != active_session:
+            active_session = snap["session_id"]
+            tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
+            last_label = None
+            was_paused = False
+            log(f"Session started: {snap['class_name']}")
+
+        # Paused: log the pause once, then skip tracking 
+        if snap["paused"]:
             if not was_paused:
-                log_event(None, None, "paused")   # marks when the pause began
+                log_event(None, None, "paused", active_session)
             was_paused = True
             wait(POLL_SECONDS)
             continue
@@ -99,7 +121,7 @@ def main():
         current = label(activity)
         if current != last_label:
             log(f"{current}  [{status}]")
-            log_event(activity["app"], activity["domain"], status)
+            log_event(activity["app"], activity["domain"], status, active_session)
             last_label = current
 
         event = tracker.update(activity, status, time.monotonic())
@@ -113,5 +135,8 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        log_event(None, None, "stopped")
+        sid = state.snapshot()["session_id"]
+        if sid is not None:   # Ctrl+C mid-session: close it properly
+            log_event(None, None, "stopped", sid)
+            end_session(sid)
         print("\nStopped.")

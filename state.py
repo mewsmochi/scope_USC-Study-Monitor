@@ -1,10 +1,15 @@
-# used as a communication whiteboard between the two processes main.py and server.py (i.e, monitor and server)
+# used as a communication whiteboard between the two threads main.py and server.py in one process (i.e, monitor and server)
 # the monitor and server run at the same time --> safe way to pass information to each other
 
 import threading
 
 _lock = threading.Lock()
-_state = {"status": "Not connected", "app": None, "domain": None, "paused": False}
+_state = {
+    # live activity
+    "status": "Not connected", "app": None, "domain": None, "paused": False,
+    # current session (None when no session is running)
+    "session_id": None, "class_name": None, "session_start": None,
+}
 
 def update(**fields):
     with _lock:
