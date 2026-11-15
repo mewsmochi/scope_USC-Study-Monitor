@@ -1,3 +1,7 @@
 .venv/
 __pycache__/
 .DS_Store
+study_mon/
+.venv/
+__pycache__/
+*.pyc

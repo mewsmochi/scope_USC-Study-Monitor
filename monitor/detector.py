@@ -44,7 +44,9 @@ def get_domain(url):
     """'https://www.youtube.com/watch?v=x' -> 'youtube.com'"""
     if not url:
         return None
-    return urlparse(url).netloc.lower().removeprefix("www.") or None
+    host = urlparse(url).hostname
+    return host.removeprefix("www.") if host else None
+    ##uses .hostname so that the port is excluded
 
 
 def get_current_activity():

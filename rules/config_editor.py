@@ -1,13 +1,28 @@
+import copy
 import difflib
 import json
 from pathlib import Path
-from urllib.parse import urlparse
 
 from AppKit import NSWorkspace, NSRunLoop, NSDate
-from monitor.detector import BROWSER_SCRIPTS, current_active
+from monitor.detector import BROWSER_SCRIPTS, get_current_activity, get_domain
+from alerts.messages import PERSONAS
 
-# Always find the file next to this script, no matter where you run from
-ALLOWLIST_PATH = Path(__file__).parent / "allowlist.json"
+# config.json lives in the project root, no matter where you run from
+CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+
+# The two list keys the menu edits
+APPS = "allowed_apps"
+SITES = "allowed_domains"
+
+DEFAULTS = {
+    "mode": "warn",
+    "persona": "kind",
+    "grace_seconds": 10,
+    "repeat_seconds": 30,
+    APPS: [],
+    SITES: [],
+    "neutral_apps": ["loginwindow", "ScreenSaverEngine", "Notification Center", "Spotlight", "Dock"],
+}
 
 
 # helper functions
@@ -16,9 +31,8 @@ def normalize(name):
     return name.strip().lower()
 
 def url_to_domain(url):
-    """'https://www.piazza.com:443/class' -> 'piazza.com'"""
-    host = urlparse(url).hostname or ""
-    return host[4:] if host.startswith("www.") else host
+    """'https://www.piazza.com:443/class' -> 'piazza.com' (one shared copy of the logic)"""
+    return get_domain(url) or ""
 
 def clean_site(text):
     """Accepts 'piazza.com', 'www.piazza.com/x', or a full URL. Returns the bare domain."""
@@ -29,67 +43,49 @@ def clean_site(text):
     return text[4:] if text.startswith("www.") else text
 
 
-# loading/saving allowlist
+# loading and saving config.json
 
-def load_allowlist():
+def load_config():
+    """Read the whole config, filling in anything missing with defaults."""
     data = {}
-    if ALLOWLIST_PATH.exists():
-        try:
-            with open(ALLOWLIST_PATH) as f:
-                data = json.load(f)
-        except json.JSONDecodeError:
-            data = {}
-    data.setdefault("apps", [])
-    data.setdefault("websites", [])
+    if CONFIG_PATH.exists():
+        text = CONFIG_PATH.read_text().strip()
+        if text:
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError as e:
+                raise SystemExit(f"config.json isn't valid JSON ({e}). Fix it, then run again.")
+    for key, default in DEFAULTS.items():
+        data.setdefault(key, copy.deepcopy(default))
     return data
 
-def save_allowlist(allowlist):
-    with open(ALLOWLIST_PATH, "w") as f:
-        json.dump(allowlist, f, indent=2)
+def save_config(config):
+    """Write the WHOLE config back, so settings like mode and persona are never lost."""
+    tmp = CONFIG_PATH.with_suffix(".tmp")
+    with open(tmp, "w") as f:
+        json.dump(config, f, indent=2)
+    tmp.replace(CONFIG_PATH)   
+    # atomic swap: readers see the old file or the new one, never half
+
 
 def add_to_allowlist(kind, value):
-    """kind is 'apps' or 'websites'. Returns True if newly added."""
-    allowlist = load_allowlist()
-    if any(normalize(item) == normalize(value) for item in allowlist[kind]):
+    """kind is APPS or SITES. Returns True if newly added."""
+    config = load_config()
+    if any(normalize(item) == normalize(value) for item in config[kind]):
         return False
-    allowlist[kind].append(value)
-    save_allowlist(allowlist)
+    config[kind].append(value)
+    save_config(config)
     return True
 
 def remove_from_allowlist(kind, value):
     """Returns True if found and removed."""
-    allowlist = load_allowlist()
-    for item in allowlist[kind]:
+    config = load_config()
+    for item in config[kind]:
         if normalize(item) == normalize(value):
-            allowlist[kind].remove(item)
-            save_allowlist(allowlist)
+            config[kind].remove(item)
+            save_config(config)
             return True
     return False
-
-
-# checking allowlist
-
-def app_is_allowed(app_name, allowlist):
-    app = normalize(app_name)
-    for allowed in allowlist["apps"]:
-        allowed = normalize(allowed)
-        # startswith handles versioned names: "matlab" matches "MATLAB_R2024b"
-        if app == allowed or app.startswith(allowed):
-            return True
-    return False
-
-def domain_is_allowed(domain, allowlist):
-    """'www.piazza.com' and 'piazza.com' both match an allowed 'piazza.com'."""
-    d = domain.lower()
-    return any(d == a.lower() or d.endswith("." + a.lower()) for a in allowlist["websites"])
-
-def is_allowed(app, url, allowlist):
-    """The one function the grace-period logic will call."""
-    if url:
-        return domain_is_allowed(url_to_domain(url), allowlist)
-    if app in BROWSER_SCRIPTS:
-        return False   # browser with no readable URL: not allowed (we can revisit this)
-    return app_is_allowed(app, allowlist)
 
 
 # finding app names
@@ -141,37 +137,57 @@ def running_app_names():
             names.add(a.localizedName())
     return sorted(names, key=str.lower)
 
+# settings helpers
+
+MODES = ("warn", "force")
+
+def choose(title, options, current):
+    """Show numbered options, return the chosen one (or None if cancelled)."""
+    print(f"\n{title} (current: {current})")
+    for i, opt in enumerate(options, start=1):
+        print(f"  {i}. {opt}")
+    pick = input("Number (Enter to cancel): ").strip()
+    if pick.isdigit() and 1 <= int(pick) <= len(options):
+        return options[int(pick) - 1]
+    return None
+
+def ask_seconds(label, current):
+    """Ask for a whole number of seconds (at least 1). Returns None if cancelled or invalid."""
+    text = input(f"{label} in seconds (current: {current}, Enter to cancel): ").strip()
+    if text.isdigit() and int(text) >= 1:
+        return int(text)
+    if text:
+        print("  Please enter a whole number of 1 or more.")
+    return None
 
 # menu actions
 
-def show(allowlist):
-    for kind in ("apps", "websites"):
-        print(f"\n{kind.upper()}:")
-        for i, item in enumerate(allowlist[kind], start=1):
-            print(f"  {i}. {item}")
-        if not allowlist[kind]:
-            print("  (empty)")
-
 def show_allowlist():
-    allowlist = load_allowlist()
-    if not any(allowlist.values()):
-        print("Allowlist is empty")
-        return
-    print("Current allowlist:")
-    show(allowlist)
+    config = load_config()
+    print(f"\nMode: {config['mode']}   Persona: {config['persona']}   "
+          f"Grace: {config['grace_seconds']}s   Repeat: {config['repeat_seconds']}s")
+    for title, key in (("APPS", APPS), ("WEBSITES", SITES)):
+        print(f"\n{title}:")
+        for i, item in enumerate(config[key], start=1):
+            print(f"  {i}. {item}")
+        if not config[key]:
+            print("  (empty)")
 
 def allow_current(seconds=5):
     """Give the user a few seconds to switch somewhere, then allow whatever they're on."""
     print(f"Switch to the app or website you want to allow. Capturing in {seconds} seconds...")
     NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(seconds))
-    app, url = current_active()
-    if url:
-        domain = url_to_domain(url)
-        print(f"Added website: {domain}" if add_to_allowlist("websites", domain) else f"{domain} is already allowed")
+    activity = get_current_activity()
+    app, domain = activity["app"], activity["domain"]
+
+    if not app:
+        print("Couldn't detect the front app. Try again.")
+    elif domain:
+        print(f"Added website: {domain}" if add_to_allowlist(SITES, domain) else f"{domain} is already allowed")
     elif app in BROWSER_SCRIPTS:
         print(f"Couldn't read a URL from {app}. Open a page and try again.")
     else:
-        print(f"Added app: {app}" if add_to_allowlist("apps", app) else f"{app} is already allowed")
+        print(f"Added app: {app}" if add_to_allowlist(APPS, app) else f"{app} is already allowed")
 
 def pick_running_app():
     apps = running_app_names()
@@ -191,7 +207,7 @@ def pick_running_app():
         name = apps[int(p) - 1]
         if name in BROWSER_SCRIPTS:
             print(f"Skipping {name}: allowing a whole browser would allow every website. Use 'Add website' instead.")
-        elif add_to_allowlist("apps", name):
+        elif add_to_allowlist(APPS, name):
             print(f"Added {name}")
         else:
             print(f"{name} is already allowed")
@@ -210,7 +226,7 @@ def add_apps_loop():
         if name not in running_app_names():
             print("  Note: this app isn't open right now, so I can't confirm the name matches.")
             print("  If it gets flagged as a distraction, open it and use option 6.")
-        print("  Added." if add_to_allowlist("apps", name) else "  Already in the list.")
+        print("  Added." if add_to_allowlist(APPS, name) else "  Already in the list.")
 
 def add_websites_loop():
     print("\nAdding websites. Press Enter on an empty line when you're done.")
@@ -218,7 +234,39 @@ def add_websites_loop():
         site = clean_site(input("Website (e.g. piazza.com): "))
         if not site:
             break
-        print("  Added." if add_to_allowlist("websites", site) else "  Already in the list.")
+        print("  Added." if add_to_allowlist(SITES, site) else "  Already in the list.")
+
+def settings_menu():
+    while True:
+        config = load_config()
+        print(f"\nSettings:  mode={config['mode']}  persona={config['persona']}  "
+              f"grace={config['grace_seconds']}s  repeat={config['repeat_seconds']}s")
+        print("1) Change mode   2) Change persona   3) Grace period   4) Repeat interval   5) Back")
+        choice = input("> ").strip()
+
+        if choice == "1":
+            new = choose("Mode  (warn = notification only, force = also switches you back)",
+                         MODES, config["mode"])
+            key = "mode"
+        elif choice == "2":
+            new = choose("Persona", list(PERSONAS), config["persona"])
+            key = "persona"
+        elif choice == "3":
+            new = ask_seconds("Grace period", config["grace_seconds"])
+            key = "grace_seconds"
+        elif choice == "4":
+            new = ask_seconds("Repeat interval", config["repeat_seconds"])
+            key = "repeat_seconds"
+        elif choice == "5":
+            break
+        else:
+            continue
+
+        if new is not None:
+            config = load_config()
+            config[key] = new
+            save_config(config)
+            print(f"  Saved: {key} = {new}")
 
 def menu():
     while True:
@@ -226,7 +274,8 @@ def menu():
         print("4) Remove app  5) Remove website")
         print("6) Allow what I'm on now   (recommended)")
         print("7) Pick from running apps  (recommended)")
-        print("8) Quit")
+        print("8) Settings (mode, persona, timers)")
+        print("9) Quit")
         choice = input("> ").strip()
 
         if choice == "1":
@@ -237,15 +286,17 @@ def menu():
             add_websites_loop()
         elif choice == "4":
             name = input("App to remove: ").strip()
-            print("Removed." if remove_from_allowlist("apps", name) else "Not found.")
+            print("Removed." if remove_from_allowlist(APPS, name) else "Not found.")
         elif choice == "5":
             site = clean_site(input("Website to remove: "))
-            print("Removed." if remove_from_allowlist("websites", site) else "Not found.")
+            print("Removed." if remove_from_allowlist(SITES, site) else "Not found.")
         elif choice == "6":
             allow_current()
         elif choice == "7":
             pick_running_app()
         elif choice == "8":
+            settings_menu()
+        elif choice == "9":
             break
 
 

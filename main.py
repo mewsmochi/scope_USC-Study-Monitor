@@ -1,7 +1,5 @@
-import json
 import time
 from datetime import datetime
-from pathlib import Path
 
 from AppKit import NSRunLoop, NSDate
 
@@ -10,8 +8,9 @@ from rules.allowlist import classify
 from rules.focus_tracker import FocusTracker
 from alerts.messages import pick_message
 from alerts.actions import notify, force_back
+from rules.config_editor import load_config
 
-CONFIG = json.loads((Path(__file__).parent / "config.json").read_text())
+CONFIG = load_config()
 POLL_SECONDS = 1.0
 
 
@@ -20,9 +19,12 @@ def wait(seconds):
 
 
 def label(activity):
+    # Use "Unknown" if front app can't be detected (i.e app is None)
+    # so the log never prints "None"
+    app = activity["app"] or "Unknown"
     if activity["domain"]:
-        return f'{activity["app"]} — {activity["domain"]}'
-    return activity["app"]
+        return f'{app} — {activity["domain"]}'
+    return app
 
 
 def log(text):
@@ -37,7 +39,8 @@ def handle(event, activity, tracker):
         text = pick_message(CONFIG["persona"], event, where)
         log(f"   ⚠️  {text}")
         notify("Study Monitor", text)
-        if CONFIG["mode"] == "force":
+        #added "event == distracted" so no new tab every repeat_seconds
+        if CONFIG["mode"] == "force" and event == "distracted": 
             force_back(tracker.last_allowed)
     elif event == "refocused":
         log(f"   ✅ {pick_message(CONFIG['persona'], 'refocused', where)}")
