@@ -29,6 +29,7 @@ DEFAULTS = {
     "pomodoro_work_minutes": 25,
     "pomodoro_break_minutes": 5,
     "pomodoro_rounds": 4,
+    "low_study_hours": 3,
 }
 
 

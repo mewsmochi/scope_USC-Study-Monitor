@@ -31,9 +31,13 @@ python main.py                  # pick a class and timer, then start monitoring
 python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace period
 ```
 
-- Dashboard (live status, session timer, pause button): http://127.0.0.1:5050
+- Dashboard: http://127.0.0.1:5050. It shows live status, the session timer and a pause button, plus
+  stats (last 7 days, personal best, per-class hours, top distractions, recent sessions) and deadlines.
+  Add deadlines there. One is flagged ⚠️ when it's due within 2 weeks and you've studied that class less than
+  `low_study_hours` (default 3) this week.
 - Stop with Ctrl+C. You get a session summary (total time, focused time, productivity %, warnings).
-- Pomodoro lengths and round count, and the idle cutoff, are in `config.json` (`pomodoro_*`, `idle_seconds`).
+- Pomodoro lengths and round count, the idle cutoff, and the deadline flag are in `config.json`
+  (`pomodoro_*`, `idle_seconds`, `low_study_hours`).
 
 ## Tests
 
@@ -41,7 +45,7 @@ python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace 
 python -m pytest
 ```
 
-The tests cover the focus tracker, allowlist rules, duration stats, and the Pomodoro timer. None of them call macOS APIs, so they also run without PyObjC.
+The tests cover the focus tracker, allowlist rules, duration stats, the dashboard report, and the Pomodoro timer. None of them call macOS APIs, so they also run without PyObjC.
 
 ## Known limitations
 
@@ -49,6 +53,7 @@ The tests cover the focus tracker, allowlist rules, duration stats, and the Pomo
 - Only the active tab of the front browser window is read.
 - Pausing doesn't freeze the Pomodoro clock: it keeps running on wall-clock time.
 - Productivity = focused ÷ (focused + distracted). Idle, neutral, pause, and break time count neither for nor against you.
+- The dashboard needs internet once to load Chart.js from a CDN. Without it the chart is skipped and everything else still works.
 - Up to ~40 seconds before a sleep or crash may be left out of the stats (time is tracked with a 30s heartbeat).
 
 ## Roadmap
@@ -85,12 +90,13 @@ Print what you're looking at once per second.
 - [x] Log every app/site switch during a session
 
 ### Phase 4: Stats & Dashboard
-- [ ] Productivity %: time on allowed apps ÷ total session time
-- [ ] Personal Best: longest unbroken focused stretch
-- [ ] Top distracting websites/apps, ranked
-- [ ] Per-class totals: see which classes you've studied most and which need more attention
-- [ ] Deadline dashboard: upcoming midterms/finals sorted by date, flagged when study hours are low
-- [ ] Menu bar app (`rumps`) and local web dashboard (Flask + Chart.js)
+- [x] Productivity %: focused time ÷ (focused + distracted time)
+- [x] Personal Best: longest unbroken focused stretch
+- [x] Top distracting websites/apps, ranked
+- [x] Per-class totals: see which classes you've studied most and which need more attention
+- [x] Deadline dashboard: upcoming midterms/finals sorted by date, flagged when study hours are low
+- [x] Local web dashboard (Flask + Chart.js)
+- [ ] Menu bar app (`rumps`)
 
 ### Phase 5: Package as a Real App
 - [ ] Package as a `.app` with `py2app`

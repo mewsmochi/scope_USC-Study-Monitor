@@ -123,3 +123,35 @@ def session_events(session_id):
     with closing(connect()) as conn:
         return conn.execute("SELECT ts, kind, status FROM events WHERE session_id = ? ORDER BY ts, id",
                             (session_id,)).fetchall()
+
+
+# dashboard reads
+
+def all_sessions():
+    with closing(connect()) as conn:
+        return conn.execute("SELECT id, class_id, start, end, mode FROM sessions").fetchall()
+
+
+def all_events():
+    """Every event that belongs to a session, oldest first."""
+    with closing(connect()) as conn:
+        return conn.execute("SELECT session_id, ts, kind, status, app, domain FROM events "
+                            "WHERE session_id IS NOT NULL ORDER BY ts, id").fetchall()
+
+
+# deadlines
+
+def list_deadlines():
+    with closing(connect()) as conn:
+        return conn.execute("SELECT id, class_id, title, due_date FROM deadlines").fetchall()
+
+
+def add_deadline(class_id, title, due_date):
+    with closing(connect()) as conn, conn:
+        return conn.execute("INSERT INTO deadlines (class_id, title, due_date) VALUES (?, ?, ?)",
+                            (class_id, title, due_date)).lastrowid
+
+
+def delete_deadline(deadline_id):
+    with closing(connect()) as conn, conn:
+        return conn.execute("DELETE FROM deadlines WHERE id = ?", (deadline_id,)).rowcount

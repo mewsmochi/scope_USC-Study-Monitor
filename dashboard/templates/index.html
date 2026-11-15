@@ -19,8 +19,42 @@
     <p>Website: <span id="current-domain">—</span></p>
 
     <button id="pause-button" disabled>Pause monitoring</button>
+
+    <h2>Last 7 days</h2>
+    <div class="tiles">
+      <div class="tile"><span class="label">Focused</span><span id="week-focused" class="value">—</span></div>
+      <div class="tile"><span class="label">Productivity</span><span id="week-productivity" class="value">—</span></div>
+      <div class="tile"><span class="label">Personal best (all time)</span><span id="personal-best" class="value">—</span></div>
+    </div>
+
+    <h2>Deadlines</h2>
+    <table>
+      <thead><tr><th>Due</th><th>Class</th><th>Title</th><th>Studied this week</th><th></th></tr></thead>
+      <tbody id="deadlines"></tbody>
+    </table>
+    <form id="deadline-form">
+      <select id="deadline-class" aria-label="Class" required></select>
+      <input id="deadline-title" aria-label="Title" placeholder="Midterm 1" maxlength="200" required>
+      <input id="deadline-date" aria-label="Due date" type="date" required>
+      <button type="submit">Add deadline</button>
+      <span id="deadline-error" class="error" role="alert"></span>
+    </form>
+
+    <h2>Focused hours per class</h2>
+    <canvas id="class-chart" height="120" aria-label="Focused hours per class"></canvas>
+
+    <h2>Top distractions</h2>
+    <ol id="distractions"></ol>
+
+    <h2>Recent sessions</h2>
+    <table>
+      <thead><tr><th>Started</th><th>Class</th><th>Timer</th><th>Focused</th><th>Productivity</th><th>Warnings</th></tr></thead>
+      <tbody id="sessions"></tbody>
+    </table>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='stats.js') }}"></script>
 </body>
 </html>
