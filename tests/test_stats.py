@@ -32,3 +32,4 @@ def test_summary():
     s = summarize(events, max_gap=42)
     assert (s["total"], s["focused"], s["distracted"], s["warnings"]) == (80, 60, 10, 1)
     assert round(s["productivity"]) == 86
+

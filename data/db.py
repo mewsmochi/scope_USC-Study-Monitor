@@ -93,3 +93,33 @@ def log_event(app, domain, status, session_id=None, heartbeat=False):
     except sqlite3.Error as e:
         # Logging problems should never stop the monitor, so just print and carry on
         print(f"   [db] couldn't log event: {e}")
+
+# sessions and classes (errors here should stop the app: there's no session without them)
+
+def list_classes():
+    with closing(connect()) as conn:
+        return conn.execute("SELECT id, name FROM classes ORDER BY name COLLATE NOCASE").fetchall()
+
+
+def add_class(name):
+    """Returns the id of the class, creating it if needed (names are unique)."""
+    with closing(connect()) as conn, conn:
+        conn.execute("INSERT OR IGNORE INTO classes (name) VALUES (?)", (name,))
+        return conn.execute("SELECT id FROM classes WHERE name = ?", (name,)).fetchone()["id"]
+
+
+def start_session(class_id, mode):
+    with closing(connect()) as conn, conn:
+        return conn.execute("INSERT INTO sessions (class_id, start, mode) VALUES (?, ?, ?)",
+                            (class_id, time.time(), mode)).lastrowid
+
+
+def end_session(session_id):
+    with closing(connect()) as conn, conn:
+        conn.execute("UPDATE sessions SET end = ? WHERE id = ?", (time.time(), session_id))
+
+
+def session_events(session_id):
+    with closing(connect()) as conn:
+        return conn.execute("SELECT ts, kind, status FROM events WHERE session_id = ? ORDER BY ts, id",
+                            (session_id,)).fetchall()

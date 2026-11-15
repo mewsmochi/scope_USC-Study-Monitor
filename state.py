@@ -4,7 +4,7 @@
 import threading
 
 _lock = threading.Lock()
-_state = {"status": "Not connected", "app": None, "domain": None, "paused": False}
+_state = {"status": "Not connected", "app": None, "domain": None, "paused": False, "session": None}
 
 def update(**fields):
     with _lock:
