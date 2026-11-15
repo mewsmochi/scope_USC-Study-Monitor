@@ -7,7 +7,7 @@
   "allowed_apps": ["Code", "Terminal", "Finder", "Preview", "Notes"],
   "allowed_domains": [
     "docs.google.com", "drive.google.com", "github.com", "usc.edu",
-    "piazza.com", "gradescope.com", "stackoverflow.com", "claude.ai", "127.0.0.1"
+    "piazza.com", "gradescope.com", "stackoverflow.com", "claude.ai"
   ],
   "neutral_apps": ["loginwindow", "ScreenSaverEngine", "Notification Center", "Spotlight", "Dock"]
 }
