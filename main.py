@@ -62,21 +62,27 @@ def handle(event, activity, tracker, sid):
     where = label(activity)
     if event == "drifting":
         log(f"   drifting... {CONFIG['grace_seconds']}s grace period started")
+        # Heads-up right as you leave the allowed list, before anything is forced
+        text = pick_message(CONFIG["persona"], "drifting", where, seconds=CONFIG["grace_seconds"])
+        log(f"   ⏳ {text}")
+        notify("Study Monitor", text)
         return
     log_event(activity["app"], activity["domain"], event, sid)
     if event in ("distracted", "still_distracted"):
-        text = pick_message(CONFIG["persona"], event, where)
-        log(f"   ⚠️  {text}")
-        notify("Study Monitor", text)
-        #added "event == distracted" so no new tab every repeat_seconds
-        if CONFIG["mode"] == "force" and event == "distracted":
-            target = tracker.last_allowed
+        # Force first (once per episode), so this notification arrives after you're pulled back
+        forced = CONFIG["mode"] == "force" and event == "distracted"
+        target = tracker.last_allowed
+        if forced:
             force_back(target)
             if target:
                 log_event(target["app"], target["domain"], "forced", sid)
+        # In force mode the message says you were sent back; in warn mode it just nudges you
+        key = "distracted_forced" if forced else event
+        text = pick_message(CONFIG["persona"], key, where)
+        log(f"   ⚠️  {text}")
+        notify("Study Monitor", text)
     elif event == "refocused":
         log(f"   ✅ {pick_message(CONFIG['persona'], 'refocused', where)}")
-
 
 def timer_tick(snap, last_phase):
     """Returns the pomodoro phase ("work"/"break"/"done") and publishes it to the dashboard."""
