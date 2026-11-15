@@ -1,67 +1,137 @@
 // page elements that will be updated
-const statusEl = document.getElementById("status");          // <strong id="status">
-const appEl = document.getElementById("current-app");        // <span id="current-app">
-const domainEl = document.getElementById("current-domain");  // <span id="current-domain">
-const button = document.getElementById("pause-button");      // <button id="pause-button">
-const sessionEl = document.getElementById("session");        // <span id="session">
+const statusEl = document.getElementById("status");                  // <strong id="status">
+const appEl = document.getElementById("current-app");               // <span id="current-app">
+const domainEl = document.getElementById("current-domain");         // <span id="current-domain">
+const pauseButton = document.getElementById("pause-button");        // <button id="pause-button">
+const sessionButton = document.getElementById("session-button");    // <button id="session-button">
+const sessionInfoEl = document.getElementById("session-info");      // <span id="session-info">
+const classSelect = document.getElementById("class-select");        // <select id="class-select">
+const newClassInput = document.getElementById("new-class");         // <input id="new-class">
+const addClassButton = document.getElementById("add-class-button"); // <button id="add-class-button">
+const timerSelect = document.getElementById("timer-select");        // <select id="timer-select">
+const summaryEl = document.getElementById("last-summary");          // <p id="last-summary">
 
-// 125 -> "2:05"
-function clock(seconds) {
-    const s = Math.floor(seconds);
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, "0")}`;
+//Helpers
+// POST a JSON body; show the server's error message if it refuses
+async function post(url, body) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) alert(data.error || "Something went wrong");
+    return data;
 }
 
-// "CSCI 104 · Pomodoro round 2/4 · work · 12:34 left" or "CSCI 104 · Regular · 45:10 elapsed"
-function sessionText(se) {
-    if (!se) return "—";
-    if (se.mode === "pomodoro") {
-        return `${se.class} · Pomodoro round ${se.round}/${se.rounds} · ${se.phase} · ${clock(se.remaining)} left`;
-    }
-    return `${se.class} · Regular · ${clock(se.elapsed)} elapsed`;
+// 725 seconds -> "12:05"
+function formatElapsed(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// refresh(): fetch the latest status from the server and update the page elements
-async function refresh() {
-    try {
-    //current state
-    const res = await fetch("/api/status");
-    //current state in json --> javascript
-    const s = await res.json();
-    //if monitering paused --> show paused, otherwise show monitors status
-    statusEl.textContent = s.paused ? "Paused" : s.status;
-    sessionEl.textContent = sessionText(s.session);
-    //show app and website
-    //use "-" if app or domain is empty
-    appEl.textContent = s.app || "—";
-    domainEl.textContent = s.domain || "—";
-    //if we get response, enable pause button
-    button.disabled = false;
-    button.textContent = s.paused ? "Resume monitoring" : "Pause monitoring";
-} catch (err) {
-    //if fetch fails (server is offline) reflect that on the page
-    statusEl.textContent = "Error";
-    button.disabled = true;
+// "CSCI 104 — 12:05" (regular) or "CSCI 104 — Pomodoro round 2/4, work, 12:34 left"
+function sessionText(s) {
+  const t = s.timer;
+  if (s.mode === "pomodoro" && t) {
+    return `${s.class_name} — Pomodoro round ${t.round}/${t.rounds}, ${t.phase}, ${formatElapsed(t.remaining)} left`;
+  }
+  return `${s.class_name} — ${formatElapsed(Date.now() / 1000 - s.session_start)}`;
 }
 
-
+// "Last session (CSCI 104): 48:10 focused, 87% productive, 3 warnings"
+function summaryText(sum) {
+  const pct = sum.productivity === null ? "—" : `${Math.round(sum.productivity)}%`;
+  return `Last session (${sum.class}): ${formatElapsed(sum.focused)} focused of ${formatElapsed(sum.total)}, ` +
+         `${pct} productive, ${sum.warnings} warning${sum.warnings === 1 ? "" : "s"}`;
 }
 
+// Class dropdown 
+// Loaded at start and after adding a class (not every second, which would reset your choice)
+async function loadClasses(selectId) {
+  const res = await fetch("/api/classes", { cache: "no-store" });
+  const classes = await res.json();
+  classSelect.innerHTML = "";
+  for (const c of classes) {
+    const option = document.createElement("option");
+    option.value = c.id;
+    option.textContent = c.name;
+    classSelect.appendChild(option);
+  }
+  if (selectId) classSelect.value = selectId;
+}
 
-// PAUSE / RESUME BUTTON
-
-// When the button is clicked, send a POST request to /api/pause.
-// The server flips the "paused" flag on the shared state board.
-button.addEventListener('click', async () => {
-    await fetch("/api/pause", { method: "POST" });
-    // Refresh right away so the button label changes immediately
+addClassButton.addEventListener("click", async () => {
+  const c = await post("/api/classes", { name: newClassInput.value });
+  if (c.id) {
+    newClassInput.value = "";
+    await loadClasses(c.id);
     refresh();
+    if (window.refreshStats) refreshStats();   // the deadline form's class list too
+  }
 });
 
+// refresh(): ask the server what's happening and update every part of the page.
+// Runs once at load, after each button click, and every second.
+async function refresh() {
+  try {
+    // Get the shared state from Flask (no-store = never use a cached answer)
+    const res = await fetch("/api/status", { cache: "no-store" });
+    const s = await res.json();
+    // session_id is null when no session is running
+    const inSession = s.session_id !== null;
+
+    // Live activity: status text depends on whether a session is running or paused
+    statusEl.textContent = !inSession ? "No session running" : s.paused ? "Paused" : s.status;
+    appEl.textContent = s.app || "—";          // "—" if no app detected
+    domainEl.textContent = s.domain || "—";    // "—" if not on a website
+
+    // Session info: class name plus elapsed time (now minus start, in seconds)
+    sessionInfoEl.textContent = inSession ? sessionText(s) : "Not started";
+    // After a session ends, show its summary until the next one starts
+    summaryEl.hidden = inSession || !s.last_summary;
+    if (s.last_summary) summaryEl.textContent = summaryText(s.last_summary);
+    // One button does both jobs: its label follows the session state
+    sessionButton.textContent = inSession ? "Stop session" : "Start session";
+    // Can't start without a class selected
+    sessionButton.disabled = !inSession && !classSelect.value;
+    // Lock the dropdown mid-session so the class can't change
+    classSelect.disabled = inSession;
+    timerSelect.disabled = inSession;
+
+    // Pause only makes sense during a session; the label flips between pause and resume
+    pauseButton.disabled = !inSession;
+    pauseButton.textContent = s.paused ? "Resume monitoring" : "Pause monitoring";
+  } catch (err) {
+    // Server unreachable (e.g. main.py was stopped): show it and disable the buttons
+    statusEl.textContent = "Not connected";
+    sessionButton.disabled = true;
+    pauseButton.disabled = true;
+  }
+}
+
+// Buttons 
+sessionButton.addEventListener("click", async () => {
+  const inSession = sessionButton.textContent === "Stop session";
+  if (inSession) {
+    await post("/api/session/stop");
+    setTimeout(() => window.refreshStats && refreshStats(), 1500);   // summary + stats once the monitor has caught up
+  } else {
+    await post("/api/session/start", { class_id: Number(classSelect.value), mode: timerSelect.value });
+  }
+  refresh();
+});
+
+pauseButton.addEventListener("click", async () => {
+  await post("/api/pause");
+  refresh();
+});
+
+// Start up 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refresh();
 });
 
-// initial refresh to populate the page with current status
-refresh();
+loadClasses().then(refresh);
 setInterval(refresh, 1000);

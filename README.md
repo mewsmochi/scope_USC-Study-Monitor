@@ -27,15 +27,18 @@ macOS asks for these the first time they're needed. If you missed a prompt, turn
 ## Run
 
 ```bash
-python main.py                  # pick a class and timer, then start monitoring
+python main.py                  # starts the monitor and the dashboard
 python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace period
 ```
 
-- Dashboard: http://127.0.0.1:5050. It shows live status, the session timer and a pause button, plus
+- Open http://127.0.0.1:5050, pick or add a class, choose Regular or Pomodoro, and press **Start session**.
+  The dashboard also shows live status, the session timer and a pause button, plus
   stats (last 7 days, personal best, per-class hours, top distractions, recent sessions) and deadlines.
   Add deadlines there. One is flagged ⚠️ when it's due within 2 weeks and you've studied that class less than
   `low_study_hours` (default 3) this week.
-- Stop with Ctrl+C. You get a session summary (total time, focused time, productivity %, warnings).
+- End a session with **Stop session**. A Pomodoro session also ends on its own after the last round.
+  Either way you get a summary (total time, focused time, productivity %, warnings) in the terminal and on the dashboard.
+  Ctrl+C quits the monitor and closes any running session first.
 - Pomodoro lengths and round count, the idle cutoff, and the deadline flag are in `config.json`
   (`pomodoro_*`, `idle_seconds`, `low_study_hours`).
 

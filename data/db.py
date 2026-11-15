@@ -94,29 +94,60 @@ def log_event(app, domain, status, session_id=None, heartbeat=False):
         # Logging problems should never stop the monitor, so just print and carry on
         print(f"   [db] couldn't log event: {e}")
 
-# sessions and classes (errors here should stop the app: there's no session without them)
-
-def list_classes():
-    with closing(connect()) as conn:
-        return conn.execute("SELECT id, name FROM classes ORDER BY name COLLATE NOCASE").fetchall()
-
+# Add, list, and retrieve classes
 
 def add_class(name):
-    """Returns the id of the class, creating it if needed (names are unique)."""
+    """Add a class (ignored if it exists) and return {'id', 'name'}, or None if the name is blank."""
+    name = name.strip()
+    if not name:
+        return None
     with closing(connect()) as conn, conn:
+        # OR IGNORE + UNIQUE name: adding a duplicate just reuses the existing row
         conn.execute("INSERT OR IGNORE INTO classes (name) VALUES (?)", (name,))
-        return conn.execute("SELECT id FROM classes WHERE name = ?", (name,)).fetchone()["id"]
+        row = conn.execute("SELECT id, name FROM classes WHERE name = ?", (name,)).fetchone()
+    return dict(row)
 
 
-def start_session(class_id, mode):
+def list_classes():
+    # All classes, alphabetical, for the dropdown
+    with closing(connect()) as conn:
+        return [dict(r) for r in conn.execute("SELECT id, name FROM classes ORDER BY name")]
+
+
+def get_class(class_id):
+    # One class by id, or None if it doesn't exist
+    with closing(connect()) as conn:
+        row = conn.execute("SELECT id, name FROM classes WHERE id = ?", (class_id,)).fetchone()
+    return dict(row) if row else None
+
+
+# Start, end, and close abandoned sessions
+def start_session(class_id, mode="regular"):
+    """Create a session row and return its id."""
     with closing(connect()) as conn, conn:
-        return conn.execute("INSERT INTO sessions (class_id, start, mode) VALUES (?, ?, ?)",
-                            (class_id, time.time(), mode)).lastrowid
+        cur = conn.execute(
+            "INSERT INTO sessions (class_id, start, mode) VALUES (?, ?, ?)",
+            (class_id, time.time(), mode),
+        )
+        return cur.lastrowid   # the id SQLite just assigned
 
 
 def end_session(session_id):
+    # Stamp the end time; "end" is quoted because it's also an SQL keyword.
+    # AND "end" IS NULL means an already-ended session is never overwritten.
     with closing(connect()) as conn, conn:
-        conn.execute("UPDATE sessions SET end = ? WHERE id = ?", (time.time(), session_id))
+        conn.execute('UPDATE sessions SET "end" = ? WHERE id = ? AND "end" IS NULL',
+                     (time.time(), session_id))
+
+
+def close_orphan_sessions():
+    """If the program crashed mid-session, close that session at its last logged event."""
+    with closing(connect()) as conn, conn:
+        # For every session with no end: use its newest event's time (or its start if it has none)
+        conn.execute('''
+            UPDATE sessions
+            SET "end" = COALESCE((SELECT MAX(ts) FROM events WHERE session_id = sessions.id), start)
+            WHERE "end" IS NULL''')
 
 
 def session_events(session_id):

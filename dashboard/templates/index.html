@@ -4,20 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Study Monitor</title>
-  <link
-    rel="stylesheet"
-    href="{{ url_for('static', filename='style.css') }}"
-  >
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <main>
     <h1>Study Monitor</h1>
 
-    <p>Session: <span id="session">—</span></p>
+    <!--Class picker: choose a class, or add a new one -->
+    <section>
+      <label for="class-select">Class</label>
+      <select id="class-select"></select>
+      <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
+      <button id="add-class-button">Add</button>
+    </section>
+
+    <!-- Session controls -->
+    <section>
+      <label for="timer-select">Timer</label>
+      <select id="timer-select">
+        <option value="regular">Regular (counts up)</option>
+        <option value="pomodoro">Pomodoro</option>
+      </select>
+      <button id="session-button" disabled>Start session</button>
+    </section>
+    <p>Session: <span id="session-info">Not started</span></p>
+    <p id="last-summary" hidden></p>
+
+    <!-- Live activity (filled in by app.js) -->
     <p>Status: <strong id="status">Not connected</strong></p>
     <p>App: <span id="current-app">—</span></p>
     <p>Website: <span id="current-domain">—</span></p>
 
+    <!-- Pause only works during a session -->
     <button id="pause-button" disabled>Pause monitoring</button>
 
     <h2>Last 7 days</h2>
