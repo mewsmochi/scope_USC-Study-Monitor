@@ -91,8 +91,8 @@ def main():
             wait(POLL_SECONDS)
             continue
         if was_paused:
-            # Resuming: start with a fresh tracker so an old drift timer can't fire instantly
-            tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
+            # Resuming: clear old drift timers so they can't fire instantly (keeps last_allowed)
+            tracker.reset()
             last_label = None   # forces the current activity to be logged again
             was_paused = False
 
