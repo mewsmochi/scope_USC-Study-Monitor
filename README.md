@@ -48,7 +48,7 @@ python -m rules.config_editor   # edit allowed apps/sites, mode, persona, grace 
 python -m pytest
 ```
 
-The tests cover the focus tracker, allowlist rules, duration stats, the dashboard report, and the Pomodoro timer. None of them call macOS APIs, so they also run without PyObjC.
+The tests cover the focus tracker, allowlist rules, duration stats, the dashboard report, the Pomodoro timer, and the dashboard API (including blocking requests from other websites). None of them call macOS APIs, so they also run without PyObjC. GitHub Actions runs them on Linux for every PR and every push to `main` (`.github/workflows/tests.yml`).
 
 ## Known limitations
 
