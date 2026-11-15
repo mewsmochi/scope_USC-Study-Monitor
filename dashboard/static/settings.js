@@ -12,8 +12,11 @@ function flash(el, text) {
   setTimeout(() => (el.textContent = ""), 3000);
 }
 
+// Show "Force" / "Kind" in the dropdown, but keep the saved value lowercase ("force" / "kind")
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
 function fillSelect(sel, options, current) {
-  sel.replaceChildren(...options.map(o => new Option(o, o)));
+  sel.replaceChildren(...options.map(o => new Option(cap(o), o)));
   sel.value = current;
 }
 
