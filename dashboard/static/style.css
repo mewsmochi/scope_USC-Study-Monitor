@@ -1,3 +1,6 @@
+/* Page title */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap");
+
 :root {
   --bg: #061510;      /* page */
   --card: #102c1d;    /* tiles, items inside the card */
@@ -124,3 +127,23 @@ main ul li { padding: 0.3rem 0.8rem; }
 #timer-box.break #timer-phase, #timer-box.break #timer-display { color: #facc15; }
 #pomo-fields label { margin: 0 0.6rem 0 0.8rem; }
 #pomo-fields input { width: 4rem; }
+
+/* Next deadline card */
+.next-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1.1rem;
+}
+.next-card.low { background: var(--warn); border-color: #facc15; }
+.next-days { font-size: 2.2rem; font-weight: 800; min-width: 4.5rem; text-align: center; line-height: 1; }
+#study-order { padding-left: 1.2rem; }
+
+main h1 {
+  font-family: "Poppins", "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+  margin: 0 0 1rem;
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(74, 222, 128, 0.35);   /* soft green glow */
+}
