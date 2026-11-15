@@ -54,7 +54,7 @@ def force_back(target):
     if not target or not target.get("app_path"):
         print("   [force] no allowed app seen yet, nothing to go back to")
         return
-    #new: integrate with focus_existing_tab function
+    #try to reuse an existing tab (see _focus_existing_tab) instead of opening a new one
     app_name = Path(target["app_path"]).stem   # "Google Chrome.app" -> "Google Chrome"
     url = target.get("url")
 
