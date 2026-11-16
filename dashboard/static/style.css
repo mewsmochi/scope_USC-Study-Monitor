@@ -186,3 +186,13 @@ form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .next-card.low { background: var(--warn); border-color: #facc15; }
 .next-days { font-size: 2.2rem; font-weight: 800; min-width: 4.5rem; text-align: center; line-height: 1; }
 #study-order { padding-left: 1.2rem; }
+
+/* Footer note */
+.footer-note {
+  margin: 2rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
