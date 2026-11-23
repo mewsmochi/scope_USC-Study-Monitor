@@ -62,7 +62,7 @@ function sessionText(s) {
   if (s.mode === "pomodoro" && t) {
     return `${s.class_name} — Pomodoro round ${t.round}/${t.rounds}, ${t.phase}, ${formatElapsed(t.remaining)} left`;
   }
-  return `${s.class_name} — ${formatElapsed(Date.now() / 1000 - s.session_start)}`;
+  return `${s.class_name} — ${formatElapsed((s.paused_at || Date.now() / 1000) - s.session_start)}`;
 }
 
 // "Last session (CSCI 104): 48:10 focused, 87% productive, 3 warnings"
@@ -132,7 +132,7 @@ async function refresh() {
 
     // Pause only makes sense during a session; the label flips between pause and resume
     pauseButton.disabled = !inSession;
-    pauseButton.textContent = s.paused ? "Resume monitoring" : "Pause monitoring";
+    pauseButton.textContent = s.paused ? "Resume session" : "Pause session";
   } catch (err) {
     // Server unreachable (e.g. main.py was stopped): show it and disable the buttons
     statusEl.textContent = "Not connected";

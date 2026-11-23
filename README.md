@@ -124,7 +124,6 @@ The tests cover the focus tracker, allowlist rules, duration stats, the dashboar
  
 - Only the frontmost window is checked. A distracting video in a second window or on another monitor goes unnoticed.
 - Only the active tab of the front browser window is read.
-- Pausing doesn't freeze the timer display or the Pomodoro clock: they keep running on wall-clock time.
 - Productivity = focused ÷ (focused + distracted). Idle, neutral, pause and break time count neither for nor against you.
 - Typed app names must match the name macOS reports for the running app (for example VS Code is `Code`). Use **Allow what I'm on now** to avoid mismatches.
 - The dashboard needs internet once to load Chart.js and the title font. Without it the chart is skipped and the title uses a system font; everything else still works.
@@ -143,12 +142,10 @@ The tests cover the focus tracker, allowlist rules, duration stats, the dashboar
 - [x] Pause button
 - [x] Focus Mode: webcam look-away alerts
 **Next**
-- [ ] Freeze the timer while paused
 - [ ] Menu bar app (`rumps`)
 - [ ] Package as a `.app` with `py2app`, with start at login
+
 ## Future ideas
- 
-These aren't built yet.
  
 - **Phone and iPad usage reports:** a laptop webcam can't reliably see a phone or tablet on the desk (we tried object detection, and Focus Mode looks at head position instead). A better route is for the device to report itself. An iPad Shortcuts automation (or Tasker/MacroDroid on Android) could send a request to Tunnl whenever a distracting app opens, and Tunnl would log it as a distraction. This needs a network-reachable endpoint protected by a secret token, and some campus Wi-Fi networks stop devices from reaching each other, so a hotspot or a private network tool like Tailscale may be needed.
 - **iPad companion app (Swift/SwiftUI):** iPadOS doesn't let apps see which other apps you use, so the iPad app could only *block* distracting apps during a session through Apple's Screen Time API (FamilyControls / DeviceActivity), not track them. Needs a paid Apple Developer account, plus a way to sync sessions with the Mac.
