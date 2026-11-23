@@ -19,7 +19,7 @@ SITES = "allowed_domains"
 
 DEFAULTS = {
     "mode": "warn",
-    "persona": "kind",
+    "persona": "base",
     "grace_seconds": 10,
     "repeat_seconds": 30,
     APPS: [],
@@ -30,6 +30,8 @@ DEFAULTS = {
     "pomodoro_break_minutes": 5,
     "pomodoro_rounds": 4,
     "low_study_hours": 3,
+        "focus_mode": False,
+    "look_away_seconds": 10,
 }
 
 
@@ -179,6 +181,7 @@ NUMBER_SETTINGS = (
     ("Pomodoro break", "pomodoro_break_minutes", "minutes"),
     ("Pomodoro rounds", "pomodoro_rounds", "rounds"),
     ("Low-study warning below", "low_study_hours", "hours per week"),
+    ("Look away for", "look_away_seconds", "seconds"),
 )
 
 # menu actions
@@ -300,7 +303,8 @@ def menu():
         print("6) Allow what I'm on now   (recommended)")
         print("7) Pick from running apps  (recommended)")
         print("8) Settings (mode, persona, timers, Pomodoro, idle)")
-        print("9) Quit")
+        print("9) Toggle focus mode (webcam look-away alerts)")
+        print("10) Quit")
         choice = input("> ").strip()
 
         if choice == "1":
@@ -322,8 +326,15 @@ def menu():
         elif choice == "8":
             settings_menu()
         elif choice == "9":
+            config = load_config()
+            config["focus_mode"] = not config["focus_mode"]
+            save_config(config)
+            print("Focus mode is now", "ON" if config["focus_mode"] else "OFF")
+            if config["focus_mode"]:
+                print("Note: not recommended if you'll be looking down for long stretches "
+                      "(writing, reading). That counts as looking away.")
+        elif choice == "10":
             break
-
 
 if __name__ == "__main__":
     menu()

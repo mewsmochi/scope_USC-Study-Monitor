@@ -21,10 +21,14 @@ from sessions.timer import pomodoro_phase
 import state
 from dashboard.server import run as run_dashboard
 
+from webcam.look_away import LookAwayWatcher
+watcher = LookAwayWatcher()
+
 
 CONFIG = load_config()
 POLL_SECONDS = 1.0
 RELOAD_SECONDS = 5
+last_distraction = None   # app name of the latest drifting/distracted event, used to word "refocused"
 
 
 def wait(seconds):
@@ -37,6 +41,8 @@ def label(activity):
     app = activity["app"] or "Unknown"
     if activity["domain"]:
         return f'{app} — {activity["domain"]}'
+    if activity["app"] == "Looking away":
+        return "away from your screen"
     return app
 
 
@@ -57,20 +63,28 @@ def current_status(activity):
         return "idle"
     return status
 
+def msg_key(key, activity):
+    """Focus Mode look-aways have no app name to fill in, so they get their own wording."""
+    return f"away_{key}" if activity["app"] == "Looking away" else key
 
 def handle(event, activity, tracker, sid):
+    global last_distraction
     where = label(activity)
+    if event in ("drifting", "distracted", "still_distracted"):
+        last_distraction = activity["app"]
     if event == "drifting":
         log(f"   drifting... {CONFIG['grace_seconds']}s grace period started")
-        # Heads-up right as you leave the allowed list, before anything is forced
-        text = pick_message(CONFIG["persona"], "drifting", where, seconds=CONFIG["grace_seconds"])
-        log(f"   ⏳ {text}")
-        notify("Study Monitor", text)
+        # Heads-up only in force mode (you're about to be sent back). Warn mode and
+        # look-aways go straight to the warning.
+        if CONFIG["mode"] == "force" and activity["app"] != "Looking away":
+            text = pick_message(CONFIG["persona"], "drifting", where, seconds=CONFIG["grace_seconds"])
+            log(f"   ⏳ {text}")
+            notify("Study Monitor", text)
         return
     log_event(activity["app"], activity["domain"], event, sid)
     if event in ("distracted", "still_distracted"):
         # Force first (once per episode), so this notification arrives after you're pulled back
-        forced = CONFIG["mode"] == "force" and event == "distracted"
+        forced = CONFIG["mode"] == "force" and event == "distracted" and activity["app"] != "Looking away"
         target = tracker.last_allowed
         if forced:
             force_back(target)
@@ -78,11 +92,16 @@ def handle(event, activity, tracker, sid):
                 log_event(target["app"], target["domain"], "forced", sid)
         # In force mode the message says you were sent back; in warn mode it just nudges you
         key = "distracted_forced" if forced else event
-        text = pick_message(CONFIG["persona"], key, where)
+        text = pick_message(CONFIG["persona"], msg_key(key, activity), where)
         log(f"   ⚠️  {text}")
         notify("Study Monitor", text)
     elif event == "refocused":
-        log(f"   ✅ {pick_message(CONFIG['persona'], 'refocused', where)}")
+        # Looking away gets its own welcome-back wording
+        key = "away_refocused" if last_distraction == "Looking away" else "refocused"
+        last_distraction = None
+        text = pick_message(CONFIG["persona"], key, where)
+        log(f"   ✅ {text}")
+        notify("Study Monitor", text)
 
 def timer_tick(snap, last_phase):
     """Returns the pomodoro phase ("work"/"break"/"done") and publishes it to the dashboard."""
@@ -125,8 +144,9 @@ def summarize_session(sid, class_name, mode):
 def main():
     global CONFIG
     init_db()
-    close_orphan_sessions()   # tidy up any session left open by a crash
+    close_orphan_sessions()   # if the program crashed mid-session, close it at its last logged event
     threading.Thread(target=run_dashboard, daemon=True).start()   # dashboard runs in the background
+    watcher.start()   # focus-mode camera thread (idle until focus mode is on)
     tracker = FocusTracker(CONFIG["grace_seconds"], CONFIG["repeat_seconds"])
     log(f"Study Monitor on: mode={CONFIG['mode']}, persona={CONFIG['persona']}, "
         f"grace={CONFIG['grace_seconds']}s (Ctrl+C to quit)")
@@ -151,6 +171,7 @@ def main():
 
         activity = get_current_activity()
         status = current_status(activity)
+        watcher.configure(CONFIG["focus_mode"], CONFIG["look_away_seconds"])
         snap = state.snapshot()
         sid = snap["session_id"]
 
@@ -164,10 +185,12 @@ def main():
             tracker.reset()   # fresh timers for the new session (keeps last_allowed)
             last_logged, last_write, was_paused, was_held, phase = None, 0.0, False, False, None
             log(f"Session started: {snap['class_name']} ({snap['mode']})")
-
+        
         # No session running: show live activity but track nothing
         if sid is None:
-            state.update(status=status, app=activity["app"], domain=activity["domain"])
+            watcher.set_active(False)   # no session, no camera
+            state.update(status=status, app=activity["app"], domain=activity["domain"],
+                         focus_cam=watcher.status)
             wait(POLL_SECONDS)
             continue
 
@@ -192,8 +215,16 @@ def main():
             last_logged = None   # forces the current activity to be logged again
         was_held = bool(held)
 
+        # Focus mode: the camera only runs during an active session (not paused, not on break)
+        watcher.set_active(not held)
+        if watcher.away and not held and status != "distracting":
+            # Looking away counts, but a real distracting app keeps its own name
+            activity = {**activity, "app": "Looking away", "app_path": None, "url": None, "domain": None}
+            status = "distracting"
+
         # Publish to the dashboard's shared board (see state.py)
-        state.update(status=held or status, app=activity["app"], domain=activity["domain"])
+        state.update(status=held or status, app=activity["app"], domain=activity["domain"],
+            focus_cam=watcher.status)
 
         current = (label(activity), status)
         if not held and current != last_logged:

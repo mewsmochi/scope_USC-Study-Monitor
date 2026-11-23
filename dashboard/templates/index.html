@@ -28,6 +28,7 @@
         <select id="class-select"></select>
         <input id="new-class" placeholder="Add a class, e.g. CSCI 270">
         <button id="add-class-button">Add</button>
+        <p id="no-classes" class="hint" hidden>No classes yet. Type a class name above and click Add to get started.</p>
       </section>
 
       <!-- Session controls -->
@@ -52,6 +53,7 @@
       <p>Status: <strong id="status">Not connected</strong></p>
       <p>App: <span id="current-app">—</span></p>
       <p>Website: <span id="current-domain">—</span></p>
+      <p><b>Focus Mode</b>: <span id="camera-status">—</span></p>
 
       <!-- Pause only works during a session -->
       <button id="pause-button" disabled>Pause monitoring</button>
@@ -99,6 +101,13 @@
         <p><label>Mode <select id="set-mode"></select></label>
            <small>Warn = notification only, Force = also switches you back</small>
         <p><label>Persona <select id="set-persona"></select></label></p>
+        <p><label><input type="checkbox" id="set-focus"> <b>Focus Mode</b> (webcam look-away alerts)</label></p>
+        <p class="hint">
+          Uses your webcam during sessions to notice when you look away from the screen. Not recommended
+          if you expect to look down for long stretches, like handwriting notes or reading a book, because
+          that counts as looking away. Video is never saved or sent anywhere, and the camera is off
+          outside sessions.
+        </p>
         <div id="set-numbers"></div>
         <button id="save-settings">Save settings</button>
         <span id="settings-msg"></span>
@@ -143,5 +152,6 @@
   <script src="{{ url_for('static', filename='tabs.js') }}"></script>
   <script src="{{ url_for('static', filename='timer.js') }}"></script>
   <script src="{{ url_for('static', filename='urgent.js') }}"></script>
+  <script src="{{ url_for('static', filename='focus.js') }}"></script>
 </body>
 </html>
