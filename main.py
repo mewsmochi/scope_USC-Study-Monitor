@@ -26,6 +26,7 @@ watcher = LookAwayWatcher()
 
 
 CONFIG = load_config()
+moved_back = False   # True right after Force mode switched you back (no welcome-back needed)
 POLL_SECONDS = 1.0
 RELOAD_SECONDS = 5
 last_distraction = None   # app name of the latest drifting/distracted event, used to word "refocused"
@@ -45,6 +46,9 @@ def label(activity):
         return "away from your screen"
     return app
 
+def short_label(activity):
+    """Just the website if there is one, otherwise the app: used in notifications."""
+    return activity["domain"] or activity["app"] or "Unknown"
 
 def log(text):
     print(f"[{datetime.now():%H:%M:%S}] {text}")
@@ -68,8 +72,8 @@ def msg_key(key, activity):
     return f"away_{key}" if activity["app"] == "Looking away" else key
 
 def handle(event, activity, tracker, sid):
-    global last_distraction
-    where = label(activity)
+    global last_distraction, moved_back
+    where = short_label(activity)
     if event in ("drifting", "distracted", "still_distracted"):
         last_distraction = activity["app"]
     if event == "drifting":
@@ -90,6 +94,7 @@ def handle(event, activity, tracker, sid):
             force_back(target)
             if target:
                 log_event(target["app"], target["domain"], "forced", sid)
+        moved_back = forced and bool(target and target.get("app_path"))
         # In force mode the message says you were sent back; in warn mode it just nudges you
         key = "distracted_forced" if forced else event
         text = pick_message(CONFIG["persona"], msg_key(key, activity), where)
@@ -99,6 +104,9 @@ def handle(event, activity, tracker, sid):
         # Looking away gets its own welcome-back wording
         key = "away_refocused" if last_distraction == "Looking away" else "refocused"
         last_distraction = None
+        if moved_back:   # Force mode already put you back, so skip the welcome-back
+            moved_back = False
+            return
         text = pick_message(CONFIG["persona"], key, where)
         log(f"   ✅ {text}")
         notify("Study Monitor", text)
@@ -203,7 +211,7 @@ def main():
         phase = new_phase
 
         # Paused from the dashboard: keep showing live activity, but skip warnings
-        paused = snap["paused"]
+        paused = snap["paused"] or snap["monitoring_paused"]   # either pause stops monitoring
         if paused != was_paused:
             log_event(None, None, "paused" if paused else "resumed", sid)
             last_write = 0.0

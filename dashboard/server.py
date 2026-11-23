@@ -64,7 +64,18 @@ def pause():
         state.update(paused=False, paused_at=None,
                      session_start=s["session_start"] + (now - s["paused_at"]))
     else:
-        state.update(paused=True, paused_at=now)
+        state.update(paused=True, paused_at=now, monitoring_paused=False)
+    return jsonify(state.snapshot())
+
+@app.post("/api/pause-monitoring")
+def pause_monitoring():
+    """Stop warnings and tracking, but leave the timer running."""
+    s = state.snapshot()
+    if s["session_id"] is None:
+        return jsonify(error="No session running"), 409
+    if s["paused"]:
+        return jsonify(error="Session is paused"), 409
+    state.update(monitoring_paused=not s["monitoring_paused"])
     return jsonify(state.snapshot())
 
 # Classes

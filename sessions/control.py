@@ -16,7 +16,7 @@ def start(class_row, mode, config):
     pomodoro = (config["pomodoro_work_minutes"] * 60, config["pomodoro_break_minutes"] * 60,
                 config["pomodoro_rounds"])
     state.update(session_id=sid, class_name=class_row["name"], session_start=time.time(),
-                 mode=mode, pomodoro=pomodoro, timer=None, paused=False, last_summary=None, paused_at=None)
+                 mode=mode, pomodoro=pomodoro, timer=None, paused=False, last_summary=None, paused_at=None, monitoring_paused=False)
     return sid
 
 
@@ -28,5 +28,5 @@ def stop():
         return None
     db.log_event(None, None, "stopped", sid)
     db.end_session(sid)
-    state.update(class_name=None, session_start=None, mode=None, timer=None, paused=False, paused_at=None)
+    state.update(class_name=None, session_start=None, mode=None, timer=None, paused=False, paused_at=None, monitoring_paused=False)
     return sid
