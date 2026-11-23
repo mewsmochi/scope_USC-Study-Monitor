@@ -151,6 +151,7 @@ LIMITS = {   # config key -> (min, max)
     "grace_seconds": (1, 3600), "repeat_seconds": (1, 3600), "idle_seconds": (1, 3600),
     "pomodoro_work_minutes": (1, 180), "pomodoro_break_minutes": (1, 60),
     "pomodoro_rounds": (1, 12), "low_study_hours": (1, 100),
+    "look_away_seconds": (3, 300),
 }
 KINDS = {"apps": APPS, "sites": SITES}
 
@@ -158,7 +159,7 @@ KINDS = {"apps": APPS, "sites": SITES}
 def config_payload():
     c = load_config()
     return {
-        "mode": c["mode"], "persona": c["persona"],
+        "mode": c["mode"], "persona": c["persona"], "focus_mode": c["focus_mode"],
         "modes": list(MODES), "personas": list(PERSONAS),
         "numbers": [{"key": k, "label": label, "unit": unit, "value": c[k],
                      "min": LIMITS[k][0], "max": LIMITS[k][1]}
@@ -179,7 +180,9 @@ def set_config():
         return jsonify(error="Invalid mode"), 400
     if body.get("persona") not in PERSONAS:
         return jsonify(error="Invalid persona"), 400
-    updates = {"mode": body["mode"], "persona": body["persona"]}
+    if not isinstance(body.get("focus_mode"), bool):
+        return jsonify(error="Invalid focus mode setting"), 400
+    updates = {"mode": body["mode"], "persona": body["persona"], "focus_mode": body["focus_mode"]}
     for key, (lo, hi) in LIMITS.items():
         try:
             n = int(body[key])

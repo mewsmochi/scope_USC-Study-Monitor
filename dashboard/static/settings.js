@@ -6,6 +6,7 @@ const personaSel = document.getElementById("set-persona");
 const numbersEl = document.getElementById("set-numbers");
 const settingsMsg = document.getElementById("settings-msg");
 const allowMsg = document.getElementById("allow-current-msg");
+const focusBox = document.getElementById("set-focus");
 
 function flash(el, text) {
   el.textContent = text;
@@ -49,6 +50,7 @@ function showConfig(c) {
   if (!c || c.error) return;
   fillSelect(modeSel, c.modes, c.mode);
   fillSelect(personaSel, c.personas, c.persona);
+  focusBox.checked = c.focus_mode;
   numbersEl.replaceChildren(...c.numbers.map(n => {
     const p = document.createElement("p");
     const label = document.createElement("label");
@@ -74,7 +76,7 @@ async function loadConfig() {
 }
 
 document.getElementById("save-settings").addEventListener("click", async () => {
-  const body = { mode: modeSel.value, persona: personaSel.value };
+  const body = { mode: modeSel.value, persona: personaSel.value, focus_mode: focusBox.checked };
   numbersEl.querySelectorAll("input").forEach(i => (body[i.dataset.key] = i.value));
   const c = await post("/api/config", body);
   if (!c.error) {

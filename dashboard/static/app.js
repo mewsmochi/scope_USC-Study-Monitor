@@ -10,9 +10,34 @@ const newClassInput = document.getElementById("new-class");         // <input id
 const addClassButton = document.getElementById("add-class-button"); // <button id="add-class-button">
 const timerSelect = document.getElementById("timer-select");        // <select id="timer-select">
 const summaryEl = document.getElementById("last-summary");          // <p id="last-summary">
+const cameraEl = document.getElementById("camera-status");          // <span id="camera-status">
+const noClassesEl = document.getElementById("no-classes");   
 
 //Helpers
 // POST a JSON body; show the server's error message if it refuses
+// Focus-mode camera state (from main.py's LookAwayWatcher) -> friendly text
+const CAMERA_TEXT = {
+  off: "Off (turn on Focus Mode in Settings)",
+  idle: "Not watching right now (no session, paused, or on a break)",
+  calibrating: "Calibrating... look at your screen",
+  watching: "Watching for look-aways",
+};
+
+// Show text in the camera line, with "Focus Mode" in bold italics
+function setCamera(text) {
+  cameraEl.replaceChildren();
+  text.split("Focus Mode").forEach((part, i) => {
+    if (i > 0) {
+      const b = document.createElement("b");
+      const em = document.createElement("i");
+      em.textContent = "Focus Mode";
+      b.append(em);
+      cameraEl.append(b);
+    }
+    cameraEl.append(part);   // plain text node, never parsed as HTML
+  });
+}
+
 async function post(url, body) {
     const res = await fetch(url, {
         method: "POST",
@@ -59,6 +84,8 @@ async function loadClasses(selectId) {
     option.textContent = c.name;
     classSelect.appendChild(option);
   }
+  if (!classes.length) classSelect.appendChild(new Option("No classes yet", ""));
+  noClassesEl.hidden = classes.length > 0;   // show the hint only when the list is empty
   if (selectId) classSelect.value = selectId;
 }
 
@@ -87,6 +114,8 @@ async function refresh() {
     statusEl.textContent = !inSession ? "No session running" : s.paused ? "Paused" : s.status;
     appEl.textContent = s.app || "—";          // "—" if no app detected
     domainEl.textContent = s.domain || "—";    // "—" if not on a website
+    const cam = s.focus_cam || "off";
+    setCamera(CAMERA_TEXT[cam] || cam);   // an error shows its own text
 
     // Session info: class name plus elapsed time (now minus start, in seconds)
     sessionInfoEl.textContent = inSession ? sessionText(s) : "Not started";
@@ -109,6 +138,7 @@ async function refresh() {
     statusEl.textContent = "Not connected";
     sessionButton.disabled = true;
     pauseButton.disabled = true;
+    cameraEl.textContent = "—";
   }
 }
 
