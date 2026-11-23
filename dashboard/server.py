@@ -58,7 +58,13 @@ def pause():
     s = state.snapshot()
     if s["session_id"] is None:
         return jsonify(error="No session running"), 409
-    state.update(paused=not s["paused"])
+    now = time.time()
+    if s["paused"]:
+        # Resume: push the start time forward by the pause length so the timer skips it
+        state.update(paused=False, paused_at=None,
+                     session_start=s["session_start"] + (now - s["paused_at"]))
+    else:
+        state.update(paused=True, paused_at=now)
     return jsonify(state.snapshot())
 
 # Classes

@@ -109,8 +109,8 @@ def timer_tick(snap, last_phase):
         return "work"
     sid = snap["session_id"]
     work, brk, rounds = snap["pomodoro"]
-    # ponytail: wall clock, pausing doesn't freeze the pomodoro
-    phase, rnd, left = pomodoro_phase(time.time() - snap["session_start"], work, brk, rounds)
+    now = snap["paused_at"] or time.time()   # while paused, time stands still
+    phase, rnd, left = pomodoro_phase(now - snap["session_start"], work, brk, rounds)
     state.update(timer={"phase": phase, "round": rnd, "rounds": rounds, "remaining": left})
     if last_phase and phase != last_phase:
         if phase == "break":

@@ -98,3 +98,15 @@ def test_stats_shape(client):
     add_class(client)
     r = client.get("/api/stats").get_json()
     assert set(r) == {"classes", "recent_sessions", "personal_best", "top_distractions", "top_distractions_week", "week", "deadlines"}
+
+def test_pause_freezes_the_timer_and_resume_skips_the_gap(client):
+    cid = add_class(client)
+    client.post("/api/session/start", json={"class_id": cid})
+    start = state.snapshot()["session_start"]
+    state.update(session_start=start - 100)            # pretend 100s have passed
+    paused = client.post("/api/pause", json={}).get_json()
+    assert paused["paused"] is True and paused["paused_at"] is not None
+    state.update(paused_at=paused["paused_at"] - 60)   # pretend it was paused 60s ago
+    resumed = client.post("/api/pause", json={}).get_json()
+    assert resumed["paused"] is False and resumed["paused_at"] is None
+    assert resumed["session_start"] >= start - 100 + 59   # start moved forward by ~the 60s pause

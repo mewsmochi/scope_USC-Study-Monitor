@@ -7,6 +7,7 @@ _lock = threading.Lock()
 _state = {
     # live activity
     "status": "Not connected", "app": None, "domain": None, "paused": False,
+    "paused_at": None,      # time.time() when the current pause began (None if not paused)
     # current session (None when no session is running)
     "session_id": None, "class_name": None, "session_start": None, "mode": None,
     "pomodoro": None,       # (work_seconds, break_seconds, rounds) for this session

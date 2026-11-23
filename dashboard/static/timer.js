@@ -34,7 +34,7 @@ function renderTimer() {
     if (t.phase === "break") timerBox.classList.add("break");
   } else {
     timerPhase.textContent = s.paused ? "Paused" : "Studying";
-    timerDisplay.textContent = clock(Date.now() / 1000 - s.session_start);
+    timerDisplay.textContent = clock((s.paused_at || Date.now() / 1000) - s.session_start);
   }
 }
 
