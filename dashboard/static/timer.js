@@ -29,7 +29,7 @@ function renderTimer() {
   const t = s.timer;
   if (s.mode === "pomodoro" && t) {
     timerPhase.textContent = t.phase === "done" ? "Done"
-      : `${t.phase === "break" ? "Break" : "Focus"} · round ${t.round}/${t.rounds}`;
+      : `${t.phase === "break" ? "Break" : "Focus"} · round ${t.round}/${t.rounds}${s.paused ? " · Paused" : ""}`;
     timerDisplay.textContent = clock(t.remaining);
     if (t.phase === "break") timerBox.classList.add("break");
   } else {

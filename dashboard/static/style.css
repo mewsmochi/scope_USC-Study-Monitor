@@ -196,3 +196,5 @@ form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+.pause-row { display: flex; gap: 12px; flex-wrap: wrap; }

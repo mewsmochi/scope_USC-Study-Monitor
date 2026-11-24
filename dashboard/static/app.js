@@ -11,14 +11,15 @@ const addClassButton = document.getElementById("add-class-button"); // <button i
 const timerSelect = document.getElementById("timer-select");        // <select id="timer-select">
 const summaryEl = document.getElementById("last-summary");          // <p id="last-summary">
 const cameraEl = document.getElementById("camera-status");          // <span id="camera-status">
-const noClassesEl = document.getElementById("no-classes");   
+const noClassesEl = document.getElementById("no-classes");
+const monitorButton = document.getElementById("monitor-button");   
 
 //Helpers
 // POST a JSON body; show the server's error message if it refuses
 // Focus-mode camera state (from main.py's LookAwayWatcher) -> friendly text
 const CAMERA_TEXT = {
   off: "Off (turn on Focus Mode in Settings)",
-  idle: "Not watching right now (no session, paused, or on a break)",
+  idle: "Not watching right now (no session or paused, or on a break)",
   calibrating: "Calibrating... look at your screen",
   watching: "Watching for look-aways",
 };
@@ -111,7 +112,7 @@ async function refresh() {
     const inSession = s.session_id !== null;
 
     // Live activity: status text depends on whether a session is running or paused
-    statusEl.textContent = !inSession ? "No session running" : s.paused ? "Paused" : s.status;
+    s.paused ? "Paused" : s.monitoring_paused ? "Monitoring paused" : s.status;
     appEl.textContent = s.app || "—";          // "—" if no app detected
     domainEl.textContent = s.domain || "—";    // "—" if not on a website
     const cam = s.focus_cam || "off";
@@ -133,11 +134,14 @@ async function refresh() {
     // Pause only makes sense during a session; the label flips between pause and resume
     pauseButton.disabled = !inSession;
     pauseButton.textContent = s.paused ? "Resume session" : "Pause session";
+    monitorButton.disabled = !inSession || s.paused;   // a paused session already stops monitoring
+    monitorButton.textContent = s.monitoring_paused ? "Resume monitoring" : "Pause monitoring";
   } catch (err) {
     // Server unreachable (e.g. main.py was stopped): show it and disable the buttons
     statusEl.textContent = "Not connected";
     sessionButton.disabled = true;
     pauseButton.disabled = true;
+    monitorButton.disabled = true;
     cameraEl.textContent = "—";
   }
 }
@@ -162,6 +166,11 @@ sessionButton.addEventListener("click", async () => {
 
 pauseButton.addEventListener("click", async () => {
   await post("/api/pause");
+  refresh();
+});
+
+monitorButton.addEventListener("click", async () => {
+  await post("/api/pause-monitoring");
   refresh();
 });
 

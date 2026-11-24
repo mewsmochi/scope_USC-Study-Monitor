@@ -56,7 +56,14 @@
       <p><b>Focus Mode</b>: <span id="camera-status">—</span></p>
 
       <!-- Pause only works during a session -->
-      <button id="pause-button" disabled>Pause session</button>
+      <div class="pause-row">
+        <button id="monitor-button" disabled>Pause monitoring</button>
+        <button id="pause-button" disabled>Pause session</button>
+      </div>
+      <p class="hint">
+        <b>Pause monitoring:</b> stops warnings and tracking, but the timer keeps running.<br>
+        <b>Pause session:</b> stops the timer and monitoring. Use it for a real break.
+      </p>
       <h2>Next deadline</h2>
       <div id="next-deadline" class="next-card">Loading…</div>
       <h3>Study order</h3>
