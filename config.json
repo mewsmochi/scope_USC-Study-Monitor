@@ -1,20 +1,17 @@
 {
   "mode": "force",
-  "persona": "kind",
+  "persona": "base",
   "grace_seconds": 15,
   "repeat_seconds": 30,
   "allowed_apps": [
     "Code",
     "Terminal",
-    "Finder",
-    "Preview",
     "Notes"
   ],
   "allowed_domains": [
     "docs.google.com",
     "drive.google.com",
     "github.com",
-    "usc.edu",
     "piazza.com",
     "gradescope.com",
     "stackoverflow.com",
@@ -25,7 +22,11 @@
     "ScreenSaverEngine",
     "Notification Center",
     "Spotlight",
-    "Dock"
+    "Dock",
+    "System Settings",
+    "System Preferences",
+    "Preview",
+    "Finder"
   ],
   "idle_seconds": 120,
   "pomodoro_work_minutes": 25,
