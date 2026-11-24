@@ -5,20 +5,21 @@ A study monitor that keeps you focused, tracks your progress, and tells you what
 Tunnl watches which app or website you're on during a study session. If you drift off your allowed list, it warns you and (optionally) pulls you back. With the optional **Focus Mode**, it can also warn you when you look away from the screen. It records every session so you can see your focus, your biggest distractions, and which deadline needs attention first.
  
 **Platform:** macOS
+**Demo and screenshots:** https://mewsmochi.github.io/scope_USC-Study-Monitor/
 **Stack:** Python + PyObjC, SQLite, Flask, Chart.js
  
 ## Features
  
 - **Focus monitoring:** detects the frontmost app and the active browser tab (Chrome, Safari, Brave, Edge, Arc).
-- **Allowlist:** apps and websites that count as studying. Everything else starts a grace-period timer.
+- **Allowlist:** apps and websites that count as studying. Everything else starts a grace-period timer. Apps like System Settings, Spotlight and the Dock are treated as neutral by default, so they never trigger a warning (edit `neutral_apps` in `config.json` to change that).
 - **Two warning modes:**
   - **Warn:** one notification once the grace period runs out, then reminders while you stay off task.
   - **Force:** a heads-up when you drift, then, once the grace period runs out, Tunnl switches you back to your last study app or page (reusing the existing tab instead of opening a new one).
-- **Welcome-back message:** when you return to an allowed app after a warning, you get a short message.
+- **Welcome-back message:** when you return to an allowed app on your own after a warning, you get a short message. If Force mode already switched you back, you don't get one.
 - **Focus Mode (optional):** uses your webcam during sessions to notice when you look away from the screen. See [Focus Mode](#focus-mode-optional).
 - **Personas:** *Base*, *Kind* and *Stern* change the tone of the messages. Add your own in `alerts/messages.py`.
 - **Sessions:** pick a class (or add your first one if the list is empty), then run a Regular (counts up) or Pomodoro timer. Pomodoro focus, break and round counts can be set per session.
-- **Pause button** for breaks, plus idle detection.
+- **Two pause buttons**, plus idle detection: **Pause monitoring** stops warnings and tracking while the timer keeps running, and **Pause session** freezes the timer (including Pomodoro) and monitoring for a real break.
 - **Stats:** productivity %, last 7 days, personal best, per-class focused hours, top distractions, recent sessions.
 - **Deadlines:** add midterms and finals, see the next one coming up and what to study first. A deadline is flagged ⚠️ when it's due within 2 weeks and you've studied that class less than your weekly target.
 - **Settings tab:** change mode, persona, Focus Mode and timers, and edit the allowlist from the dashboard. "Allow what I'm on now" saves exactly what the monitor sees, so names always match.
@@ -96,7 +97,7 @@ Each persona in `alerts/messages.py` maps an event to a list of messages, and Tu
  
 - Events: `drifting` (the Force-mode heads-up), `distracted`, `distracted_forced`, `still_distracted`, `refocused`.
 - Focus Mode has its own wording, since there's no app name to mention: `away_distracted`, `away_still_distracted`, `away_refocused`.
-- `{where}` is the app or site, and `{seconds}` is available in `drifting` only.
+- `{where}` is the website when you're in a browser (for example `reddit.com`) and the app name otherwise. `{seconds}` is available in `drifting` only.
 - A new persona appears in the dashboard and the terminal menu automatically. A persona missing an event falls back to `base`.
 ## Project layout
  
@@ -109,6 +110,7 @@ sessions/       # session control and Pomodoro timer
 webcam/         # Focus Mode: head-angle detection (optional)
 data/           # SQLite database and stats
 dashboard/      # Flask server, page, scripts and styles
+docs/           # landing page (GitHub Pages)
 tests/          # pytest suite
 ```
  
@@ -139,14 +141,14 @@ The tests cover the focus tracker, allowlist rules, duration stats, the dashboar
 - [x] SQLite event logging
 - [x] Stats, deadlines, and the web dashboard
 - [x] Settings and allowlist editor on the dashboard
-- [x] Pause button
+- [x] Pause monitoring and pause session buttons (the session pause freezes the timer)
 - [x] Focus Mode: webcam look-away alerts
 **Next**
 - [ ] Menu bar app (`rumps`)
 - [ ] Package as a `.app` with `py2app`, with start at login
-
 ## Future ideas
  
-- **Phone and iPad usage reports:** a laptop webcam can't reliably see a phone or tablet on the desk (we tried object detection, and Focus Mode looks at head position instead). A better route is for the device to report itself. An iPad Shortcuts automation (or Tasker/MacroDroid on Android) could send a request to Tunnl whenever a distracting app opens, and Tunnl would log it as a distraction. This needs a network-reachable endpoint protected by a secret token, and some campus Wi-Fi networks stop devices from reaching each other, so a hotspot or a private network tool like Tailscale may be needed.
-- **iPad companion app (Swift/SwiftUI):** iPadOS doesn't let apps see which other apps you use, so the iPad app could only *block* distracting apps during a session through Apple's Screen Time API (FamilyControls / DeviceActivity), not track them. Needs a paid Apple Developer account, plus a way to sync sessions with the Mac.
+These aren't built yet.
  
+- **Phone and iPad usage reports:** a laptop webcam can't reliably see a phone or tablet on the desk (we tried object detection, and Focus Mode looks at head position instead). A better route is for the device to report itself. An iPad Shortcuts automation (or Tasker/MacroDroid on Android) could send a request to Tunnl whenever a distracting app opens, and Tunnl would log it as a distraction. This needs a network-reachable endpoint protected by a secret token, and some campus Wi-Fi networks stop devices from reaching each other, so a hotspot or a private network tool like Tailscale may be needed.
+- **iPad companion app (Swift/SwiftUI):** iPadOS doesn't let apps see which other apps you use, so the iPad app could only *block* distracting apps during a session through Apple's Screen Time API (FamilyControls / DeviceActivity), not track them. Needs a paid Apple Developer account, plus a way to sync sessions with the Mac. 
